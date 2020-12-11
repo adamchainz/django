@@ -23,7 +23,7 @@ class AutocompleteJsonView(BaseListView):
         if not self.has_perm(request):
             return JsonResponse({'error': '403 Forbidden'}, status=403)
 
-        self.term = request.GET.get('term', '')
+        self.term = request.query_params.get('term', '')
         self.object_list = self.get_queryset()
         context = self.get_context_data()
         return JsonResponse({

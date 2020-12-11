@@ -59,7 +59,7 @@ class SessionBase:
             warnings.warn(
                 'The user language will no longer be stored in '
                 'request.session in Django 4.0. Read it from '
-                'request.COOKIES[settings.LANGUAGE_COOKIE_NAME] instead.',
+                'request.cookies[settings.LANGUAGE_COOKIE_NAME] instead.',
                 RemovedInDjango40Warning, stacklevel=2,
             )
         return self._session[key]

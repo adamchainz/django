@@ -81,12 +81,12 @@ def get_token(request):
     header to the outgoing response.  For this reason, you may need to use this
     function lazily, as is done by the csrf context processor.
     """
-    if "CSRF_COOKIE" not in request.META:
+    if "CSRF_COOKIE" not in request.meta:
         csrf_secret = _get_new_csrf_string()
-        request.META["CSRF_COOKIE"] = _mask_cipher_secret(csrf_secret)
+        request.meta["CSRF_COOKIE"] = _mask_cipher_secret(csrf_secret)
     else:
-        csrf_secret = _unmask_cipher_token(request.META["CSRF_COOKIE"])
-    request.META["CSRF_COOKIE_USED"] = True
+        csrf_secret = _unmask_cipher_token(request.meta["CSRF_COOKIE"])
+    request.meta["CSRF_COOKIE_USED"] = True
     return _mask_cipher_secret(csrf_secret)
 
 
@@ -95,7 +95,7 @@ def rotate_token(request):
     Change the CSRF token in use for a request - should be done on login
     for security purposes.
     """
-    request.META.update({
+    request.meta.update({
         "CSRF_COOKIE_USED": True,
         "CSRF_COOKIE": _get_new_csrf_token(),
     })
@@ -167,7 +167,7 @@ class CsrfViewMiddleware(MiddlewareMixin):
                 )
         else:
             try:
-                cookie_token = request.COOKIES[settings.CSRF_COOKIE_NAME]
+                cookie_token = request.cookies[settings.CSRF_COOKIE_NAME]
             except KeyError:
                 return None
 
@@ -180,12 +180,12 @@ class CsrfViewMiddleware(MiddlewareMixin):
 
     def _set_token(self, request, response):
         if settings.CSRF_USE_SESSIONS:
-            if request.session.get(CSRF_SESSION_KEY) != request.META['CSRF_COOKIE']:
-                request.session[CSRF_SESSION_KEY] = request.META['CSRF_COOKIE']
+            if request.session.get(CSRF_SESSION_KEY) != request.meta['CSRF_COOKIE']:
+                request.session[CSRF_SESSION_KEY] = request.meta['CSRF_COOKIE']
         else:
             response.set_cookie(
                 settings.CSRF_COOKIE_NAME,
-                request.META['CSRF_COOKIE'],
+                request.meta['CSRF_COOKIE'],
                 max_age=settings.CSRF_COOKIE_AGE,
                 domain=settings.CSRF_COOKIE_DOMAIN,
                 path=settings.CSRF_COOKIE_PATH,
@@ -200,13 +200,13 @@ class CsrfViewMiddleware(MiddlewareMixin):
         csrf_token = self._get_token(request)
         if csrf_token is not None:
             # Use same token next time.
-            request.META['CSRF_COOKIE'] = csrf_token
+            request.meta['CSRF_COOKIE'] = csrf_token
 
     def process_view(self, request, callback, callback_args, callback_kwargs):
         if getattr(request, 'csrf_processing_done', False):
             return None
 
-        # Wait until request.META["CSRF_COOKIE"] has been manipulated before
+        # Wait until request.meta["CSRF_COOKIE"] has been manipulated before
         # bailing out, so that get_token still works
         if getattr(callback, 'csrf_exempt', False):
             return None
@@ -237,7 +237,7 @@ class CsrfViewMiddleware(MiddlewareMixin):
                 # Barth et al. found that the Referer header is missing for
                 # same-domain requests in only about 0.2% of cases or less, so
                 # we can use strict Referer checking.
-                referer = request.META.get('HTTP_REFERER')
+                referer = request.meta.get('HTTP_REFERER')
                 if referer is None:
                     return self._reject(request, REASON_NO_REFERER)
 
@@ -294,7 +294,7 @@ class CsrfViewMiddleware(MiddlewareMixin):
             request_csrf_token = ""
             if request.method == "POST":
                 try:
-                    request_csrf_token = request.POST.get('csrfmiddlewaretoken', '')
+                    request_csrf_token = request.form_data.get('csrfmiddlewaretoken', '')
                 except OSError:
                     # Handle a broken connection before we've completed reading
                     # the POST data. process_view shouldn't raise any
@@ -306,7 +306,7 @@ class CsrfViewMiddleware(MiddlewareMixin):
             if request_csrf_token == "":
                 # Fall back to X-CSRFToken, to make things easier for AJAX,
                 # and possible for PUT/DELETE.
-                request_csrf_token = request.META.get(settings.CSRF_HEADER_NAME, '')
+                request_csrf_token = request.meta.get(settings.CSRF_HEADER_NAME, '')
 
             request_csrf_token = _sanitize_token(request_csrf_token)
             if not _compare_masked_tokens(request_csrf_token, csrf_token):
@@ -319,7 +319,7 @@ class CsrfViewMiddleware(MiddlewareMixin):
             if getattr(response, 'csrf_cookie_set', False):
                 return response
 
-        if not request.META.get("CSRF_COOKIE_USED", False):
+        if not request.meta.get("CSRF_COOKIE_USED", False):
             return response
 
         # Set the CSRF cookie even if it's already set, so we renew

@@ -8,5 +8,5 @@ class TestDeprecatedIsAjax(SimpleTestCase):
     def test_is_ajax(self):
         request = HttpRequest()
         self.assertIs(request.is_ajax(), False)
-        request.META['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest'
+        request.meta['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest'
         self.assertIs(request.is_ajax(), True)

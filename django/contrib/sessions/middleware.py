@@ -18,7 +18,7 @@ class SessionMiddleware(MiddlewareMixin):
         self.SessionStore = engine.SessionStore
 
     def process_request(self, request):
-        session_key = request.COOKIES.get(settings.SESSION_COOKIE_NAME)
+        session_key = request.cookies.get(settings.SESSION_COOKIE_NAME)
         request.session = self.SessionStore(session_key)
 
     def process_response(self, request, response):
@@ -35,7 +35,7 @@ class SessionMiddleware(MiddlewareMixin):
             return response
         # First check if we need to delete this cookie.
         # The session should be deleted only if the session is entirely empty.
-        if settings.SESSION_COOKIE_NAME in request.COOKIES and empty:
+        if settings.SESSION_COOKIE_NAME in request.cookies and empty:
             response.delete_cookie(
                 settings.SESSION_COOKIE_NAME,
                 path=settings.SESSION_COOKIE_PATH,
