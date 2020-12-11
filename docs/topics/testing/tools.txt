@@ -275,14 +275,17 @@ Use the ``django.test.Client`` class to make requests.
         The ``extra`` argument acts the same as for :meth:`Client.get`.
 
         If the URL you request with a POST contains encoded parameters, these
-        parameters will be made available in the request.GET data. For example,
-        if you were to make the request::
+        parameters will be made available in :attr:`request.query_params
+        <.HttpRequest.query_params>`. For example, if you were to make the
+        request::
 
         >>> c.post('/login/?visitor=true', {'name': 'fred', 'passwd': 'secret'})
 
-        ... the view handling this request could interrogate request.POST
-        to retrieve the username and password, and could interrogate request.GET
-        to determine if the user was a visitor.
+        ... the view handling this request could interrogate
+        :attr:`request.form_data <.HttpRequest.form_data>` to retrieve the
+        username and password, and could interrogate
+        :attr:`request.query_params <.HttpRequest.query_params>` to determine
+        if the user was a visitor.
 
         If you set ``follow`` to ``True`` the client will follow any redirects
         and a ``redirect_chain`` attribute will be set in the response object
