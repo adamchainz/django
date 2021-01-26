@@ -214,6 +214,15 @@ class TestHashedFiles:
             self.assertIn(b"other.d41d8cd98f00.css", content)
         self.assertPostCondition()
 
+    def test_js_source_map(self):
+        relpath = self.hashed_file_path("cached/test.js")
+        self.assertEqual(relpath, "cached/test.6dc2a94dd78e.js")
+        with storage.staticfiles_storage.open(relpath) as relfile:
+            content = relfile.read()
+            self.assertNotIn(b"//# sourceMappingURL=test.js.map", content)
+            self.assertIn(b"//# sourceMappingURL=test.js.8a80554c91d9.map", content)
+        self.assertPostCondition()
+
     @override_settings(
         STATICFILES_DIRS=[os.path.join(TEST_ROOT, 'project', 'faulty')],
         STATICFILES_FINDERS=['django.contrib.staticfiles.finders.FileSystemFinder'],
@@ -255,7 +264,7 @@ class TestExtraPatternsStorage(CollectionTestCase):
 
         # Confirm JS patterns have been applied to JS files.
         relpath = self.cached_file_path("cached/test.js")
-        self.assertEqual(relpath, "cached/test.388d7a790d46.js")
+        self.assertEqual(relpath, "cached/test.9295cc306bde.js")
         with storage.staticfiles_storage.open(relpath) as relfile:
             self.assertIn(b'JS_URL("import.f53576679e5a.css")', relfile.read())
 
