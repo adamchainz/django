@@ -1,9 +1,15 @@
 #!/usr/bin/env python
+import os
+
+if os.environ.get('USE_PYJION'):
+    import pyjion
+    pyjion.enable()
+    pyjion.config(debug=True)
+
 import argparse
 import atexit
 import copy
 import gc
-import os
 import shutil
 import socket
 import subprocess
