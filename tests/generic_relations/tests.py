@@ -2,6 +2,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.prefetch import GenericPrefetch
 from django.core.exceptions import FieldError
 from django.db.models import Q, prefetch_related_objects
+from django.db.models.fields.fetching import lazy_mode, FETCH_PEERS
 from django.test import SimpleTestCase, TestCase, skipUnlessDBFeature
 
 from .models import (
@@ -779,6 +780,33 @@ class GenericRelationsTests(TestCase):
                 tagged_animal.content_object.latin_name,
                 self.platypus.latin_name,
             )
+
+    def test_prefetch_peers(self):
+        TaggedItem.objects.bulk_create([
+            TaggedItem(tag="lion", content_object=self.lion),
+            TaggedItem(tag="platypus", content_object=self.platypus),
+            TaggedItem(tag="quartz", content_object=self.quartz),
+        ])
+        # Peers fetching should fetch all related peers GFKs at once which is
+        # one query per content type.
+        with self.assertNumQueries(1):
+            quartz_tag, platypus_tag, lion_tag = TaggedItem.objects.order_by("-pk")[:3]
+        with lazy_mode(FETCH_PEERS):
+            with self.assertNumQueries(2):
+                self.assertEqual(lion_tag.content_object, self.lion)
+            with self.assertNumQueries(0):
+                self.assertEqual(platypus_tag.content_object, self.platypus)
+                self.assertEqual(quartz_tag.content_object, self.quartz)
+        # It should ignore already cached instances though.
+        with self.assertNumQueries(2):
+            quartz_tag, platypus_tag, lion_tag = TaggedItem.objects.order_by("-pk")[:3]
+            self.assertEqual(quartz_tag.content_object, self.quartz)
+        with lazy_mode(FETCH_PEERS):
+            with self.assertNumQueries(1):
+                self.assertEqual(lion_tag.content_object, self.lion)
+            with self.assertNumQueries(0):
+                self.assertEqual(platypus_tag.content_object, self.platypus)
+                self.assertEqual(quartz_tag.content_object, self.quartz)
 
 
 class ProxyRelatedModelTest(TestCase):

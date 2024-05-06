@@ -222,19 +222,19 @@ class DeferredAttribute:
             return getattr(instance, link_field.attname)
         return None
 
-    def fetch(self, instances):
-        if len(instances) == 1:
-            instances[0].refresh_from_db(fields=[self.field.attname])
-        else:
-            attname = self.field.attname
-            value_by_pk = {
-                pk: value
-                for pk, value in self.field.model._base_manager.db_manager()
-                .filter(pk__in={i.pk for i in instances})
-                .values_list("pk", attname)
-            }
-            for instance in instances:
-                setattr(instance, attname, value_by_pk[instance.pk])
+    def fetch(self, instance):
+        instance.refresh_from_db(fields=[self.field.attname])
+
+    def fetch_many(self, instances):
+        attname = self.field.attname
+        value_by_pk = {
+            pk: value
+            for pk, value in self.field.model._base_manager.db_manager()
+            .filter(pk__in={i.pk for i in instances})
+            .values_list("pk", attname)
+        }
+        for instance in instances:
+            setattr(instance, attname, value_by_pk[instance.pk])
 
 
 class class_or_instance_method:

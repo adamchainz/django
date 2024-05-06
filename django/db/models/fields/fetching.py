@@ -4,7 +4,7 @@ from asgiref.local import Local
 
 
 def FETCH_ONE(fetcher, instance, **kwargs):
-    fetcher.fetch((instance,))
+    fetcher.fetch(instance)
 
 
 def FETCH_PEERS(fetcher, instance, **kwargs):
@@ -14,11 +14,10 @@ def FETCH_PEERS(fetcher, instance, **kwargs):
             for weakref_peer in instance._state.peers
             if (peer := weakref_peer()) is not None
         ]
+        fetcher.fetch_many(instances)
     else:
         # Peers aren’t tracked for QuerySets returning a single instance
-        instances = (instance,)
-
-    fetcher.fetch(instances)
+        fetcher.fetch(instance)
 
 
 class LazyFieldAccess(Exception):
