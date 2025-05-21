@@ -18,3 +18,6 @@ Bugfixes
 
 * Fixed a regression in Django 5.2 that caused a crash when no arguments were
   passed into ``QuerySet.union()`` (:ticket:`36388`).
+
+* Fixed a regression in Django 5.2 that caused a crash when using ``OuterRef``
+  in the ``filter`` argument of an ``Aggregate`` expression (:ticket:`36404`).
