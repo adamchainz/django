@@ -40,7 +40,7 @@ class Aggregate(Func):
         if default is not None and self.empty_result_set_value is not None:
             raise TypeError(f"{self.__class__.__name__} does not allow default.")
         self.distinct = distinct
-        self.filter = filter
+        self.filter = None if filter is None else filter
         self.default = default
         super().__init__(*expressions, **extra)
 
