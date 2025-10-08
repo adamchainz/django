@@ -218,6 +218,18 @@ class MultiValueDict(dict):
         """Return current object as a dict with singular values."""
         return {key: self[key] for key in self}
 
+    def __or__(self, other):
+        if not isinstance(other, dict):
+            return NotImplemented
+
+        new = self.copy()
+        new.update(other)
+        return new
+
+    def __ior__(self, other):
+        self.update(other)
+        return self
+
 
 class ImmutableList(tuple):
     """

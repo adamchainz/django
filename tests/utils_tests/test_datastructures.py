@@ -248,6 +248,52 @@ class MultiValueDictTests(SimpleTestCase):
             with self.subTest(value), self.assertRaises(ValueError):
                 MultiValueDict().update(value)
 
+    def test_merge_operator_dict(self):
+        d = MultiValueDict({"name": ["Adrian", "Simon"]})
+        d2 = d | {"name": "Holovaty", "position": "Developer"}
+        self.assertEqual(
+            list(d2.lists()),
+            [("name", ["Adrian", "Simon", "Holovaty"]), ("position", ["Developer"])],
+        )
+
+    def test_merge_operator_multivaluedict(self):
+        d = MultiValueDict({"name": ["Adrian", "Simon"]})
+        d2 = MultiValueDict({"name": ["Holovaty"], "position": ["Developer"]})
+        d3 = d | d2
+        self.assertEqual(
+            list(d3.lists()),
+            [("name", ["Adrian", "Simon", "Holovaty"]), ("position", ["Developer"])],
+        )
+
+    def test_merge_operator_nondict(self):
+        d = MultiValueDict({"name": ["Adrian", "Simon"]})
+        msg = "unsupported operand type(s) for |: 'MultiValueDict' and 'int'"
+        with self.assertRaisesMessage(TypeError, msg):
+            d | 42
+
+    def test_update_operator_dict(self):
+        d = MultiValueDict({"name": ["Adrian", "Simon"]})
+        d |= {"name": "Holovaty", "position": "Developer"}
+        self.assertEqual(
+            list(d.lists()),
+            [("name", ["Adrian", "Simon", "Holovaty"]), ("position", ["Developer"])],
+        )
+
+    def test_update_operator_multivaluedict(self):
+        d = MultiValueDict({"name": ["Adrian", "Simon"]})
+        d2 = MultiValueDict({"name": ["Holovaty"], "position": ["Developer"]})
+        d |= d2
+        self.assertEqual(
+            list(d.lists()),
+            [("name", ["Adrian", "Simon", "Holovaty"]), ("position", ["Developer"])],
+        )
+
+    def test_update_operator_nondict(self):
+        d = MultiValueDict({"name": ["Adrian", "Simon"]})
+        msg = "'int' object is not iterable"
+        with self.assertRaisesMessage(TypeError, msg):
+            d |= 42
+
 
 class ImmutableListTests(SimpleTestCase):
     def test_sort(self):

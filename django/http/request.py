@@ -710,6 +710,19 @@ class QueryDict(MultiValueDict):
             )
         return "&".join(output)
 
+    def __or__(self, other):
+        if not isinstance(other, dict):
+            return NotImplemented
+        new = self.copy()
+        new._mutable = True
+        new.update(other)
+        new._mutable = self._mutable
+        return new
+
+    def __ior__(self, other):
+        self._assert_mutable()
+        return super().__ior__(other)
+
 
 class MediaType:
     def __init__(self, media_type_raw_line):
