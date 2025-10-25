@@ -1006,6 +1006,7 @@ class GZipMiddlewareTest(SimpleTestCase):
         self.resp.content = self.incompressible_string
         r = GZipMiddleware(self.get_response)(self.req)
         self.assertEqual(r.content, self.incompressible_string)
+        self.assertNotIn("Vary", r)
         self.assertIsNone(r.get("Content-Encoding"))
 
     def test_compress_deterministic(self):
