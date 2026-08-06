@@ -1,3 +1,5 @@
+import warnings
+
 from django.template import Engine
 from django.template.base import Origin, Template, TemplateSyntaxError
 from django.template.context import Context
@@ -430,6 +432,23 @@ class BasicSyntaxTests(SimpleTestCase):
     #         "Variable contains '..' on line 1",
     #     ):
     #         self.engine.render_to_string("template")
+
+    def test_double_dot_in_literal_no_warning(self):
+        tests = [
+            ('{{ "hello..world" }}', "hello..world"),
+            ("{{ 'a..b'|upper }}", "A..B"),
+            ('{{ missing|default:"a..b" }}', "a..b"),
+            ('{{ _("a..b") }}', "a..b"),
+            ("{{ 1.5 }}", "1.5"),
+        ]
+        engine = Engine()
+        for template_string, expected in tests:
+            with self.subTest(template_string=template_string):
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error", RemovedInDjango70Warning)
+                    template = engine.from_string(template_string)
+                    output = template.render(Context({}))
+                self.assertEqual(output, expected)
 
 
 class BlockContextTests(SimpleTestCase):

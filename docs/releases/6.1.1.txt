@@ -9,4 +9,7 @@ Django 6.1.1 fixes several bugs in 6.1.
 Bugfixes
 ========
 
-* ...
+* Fixed a regression in Django 6.1 that caused a spurious
+  ``RemovedInDjango70Warning`` about double-dot lookups when rendering
+  templates containing string, translated, or numeric literals with two
+  consecutive dots, such as ``{{ "a..b" }}`` (:ticket:`XXXXX`).
