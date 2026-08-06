@@ -25,6 +25,11 @@ msgstr ""
 msgid "Humanize"
 msgstr "İnsanlaşdır"
 
+#. Translators: Ordinal format when value is 1 (1st).
+msgctxt "ordinal is 1"
+msgid "{}st"
+msgstr "{}."
+
 #. Translators: Ordinal format for 11 (11th), 12 (12th), and 13 (13th).
 msgctxt "ordinal 11, 12, 13"
 msgid "{}th"

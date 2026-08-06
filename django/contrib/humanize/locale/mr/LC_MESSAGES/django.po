@@ -25,7 +25,7 @@ msgstr "मानवीकरण"
 #, python-brace-format
 msgctxt "ordinal is 1"
 msgid "{}st"
-msgstr ""
+msgstr "{}वा"
 
 #. Translators: Ordinal format for 11 (11th), 12 (12th), and 13 (13th).
 #, python-brace-format

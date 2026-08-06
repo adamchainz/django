@@ -9,4 +9,6 @@ Django 6.1.1 fixes several bugs in 6.1.
 Bugfixes
 ========
 
-* ...
+* Fixed a regression in Django 6.1 where the ``ordinal`` humanize filter
+  returned the untranslated English suffix ("1st") for the value 1 in most
+  locales, inconsistently with other ordinal values (:ticket:`XXXXX`).

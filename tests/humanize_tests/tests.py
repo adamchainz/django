@@ -84,6 +84,26 @@ class HumanizeTests(SimpleTestCase):
         with translation.override("en"):
             self.humanize_tester(test_list, result_list, "ordinal")
 
+    def test_ordinal_translated_value_1(self):
+        """
+        ordinal(1) uses the locale's translation rather than falling back to
+        the English "1st", and is consistent with other ordinals in locales
+        that use the same suffix for 1 as for other values ending in 1.
+        """
+        tests = [
+            # Locales using the same ordinal suffix for 1 and 21.
+            ("es", "1º", "21º"),
+            ("de", "1.", "21."),
+            ("ru", "1-й", "21-й"),
+            # Locales with a dedicated translation for the value 1.
+            ("fr", "1<sup>er</sup>", "21<sup>e</sup>"),
+            ("tr", "1.", "21."),
+        ]
+        for lang, expected_1, expected_21 in tests:
+            with self.subTest(lang=lang), translation.override(lang):
+                self.assertEqual(humanize.ordinal(1), expected_1)
+                self.assertEqual(humanize.ordinal(21), expected_21)
+
     @override_settings(LOCALE_PATHS=[os.path.join(here, "locale")])
     def test_i18n_html_ordinal(self):
         """Allow html in output on i18n strings"""
