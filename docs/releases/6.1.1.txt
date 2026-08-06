@@ -9,4 +9,7 @@ Django 6.1.1 fixes several bugs in 6.1.
 Bugfixes
 ========
 
-* ...
+* Fixed a regression in Django 6.1 that caused a crash when iterating a
+  ``QuerySet`` of a model overriding ``Model.from_db()`` without the new
+  ``fetch_mode`` keyword argument. Such overrides now work again, but are
+  deprecated and should be updated to accept ``fetch_mode`` (:ticket:`XXXXX`).

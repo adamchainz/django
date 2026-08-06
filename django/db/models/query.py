@@ -6,7 +6,7 @@ import copy
 import operator
 import warnings
 from contextlib import nullcontext
-from functools import reduce
+from functools import partial, reduce
 from itertools import chain, islice
 from weakref import ref as weak_ref
 
@@ -43,6 +43,7 @@ from django.utils.deprecation import (
     warn_about_external_use,
 )
 from django.utils.functional import cached_property
+from django.utils.inspect import func_accepts_kwargs, func_supports_parameter
 from django.utils.warnings import django_file_prefixes
 
 # The maximum number of results to fetch in a get() query.
@@ -52,6 +53,28 @@ MAX_GET_RESULTS = 21
 REPR_OUTPUT_SIZE = 20
 
 DEFAULT_FETCH_MODE = FETCH_ONE
+
+
+# RemovedInDjango70Warning: When the deprecation ends, remove this function
+# and restore direct model_cls.from_db(..., fetch_mode=fetch_mode) calls at
+# its call sites.
+def _get_from_db(model_cls, fetch_mode):
+    """
+    Return a callable equivalent to model_cls.from_db with fetch_mode already
+    bound, accommodating deprecated from_db() overrides that don't accept the
+    fetch_mode keyword argument.
+    """
+    from_db = model_cls.from_db
+    if func_supports_parameter(from_db, "fetch_mode") or func_accepts_kwargs(from_db):
+        return partial(from_db, fetch_mode=fetch_mode)
+    warnings.warn(
+        f"{model_cls.__qualname__}.from_db() must accept a fetch_mode keyword "
+        "argument. Support for from_db() methods that do not accept it is "
+        "deprecated.",
+        RemovedInDjango70Warning,
+        stacklevel=2,
+    )
+    return from_db
 
 
 class BaseIterable:
@@ -114,6 +137,9 @@ class ModelIterable(BaseIterable):
         init_list = [
             f[0].target.attname for f in select[model_fields_start:model_fields_end]
         ]
+        # RemovedInDjango70Warning: When the deprecation ends, replace with:
+        # from_db = partial(model_cls.from_db, fetch_mode=fetch_mode)
+        from_db = _get_from_db(model_cls, fetch_mode)
         related_populators = get_related_populators(klass_info, select, db, fetch_mode)
         known_related_objects = [
             (
@@ -133,11 +159,10 @@ class ModelIterable(BaseIterable):
         ]
         peers = []
         for row in compiler.results_iter(results):
-            obj = model_cls.from_db(
+            obj = from_db(
                 db,
                 init_list,
                 row[model_fields_start:model_fields_end],
-                fetch_mode=fetch_mode,
             )
             if fetch_mode.track_peers:
                 peers.append(weak_ref(obj))
@@ -204,13 +229,15 @@ class RawModelIterable(BaseIterable):
                     query_iterator, cols
                 )
             fetch_mode = self.queryset._fetch_mode
+            # RemovedInDjango70Warning: When the deprecation ends, replace
+            # with:
+            # from_db = partial(model_cls.from_db, fetch_mode=fetch_mode)
+            from_db = _get_from_db(model_cls, fetch_mode)
             peers = []
             for values in query_iterator:
                 # Associate fields to values
                 model_init_values = [values[pos] for pos in model_init_pos]
-                instance = model_cls.from_db(
-                    db, model_init_names, model_init_values, fetch_mode=fetch_mode
-                )
+                instance = from_db(db, model_init_names, model_init_values)
                 if fetch_mode.track_peers:
                     peers.append(weak_ref(instance))
                     instance._state.peers = peers
@@ -3022,6 +3049,9 @@ class RelatedPopulator:
             )
 
         self.model_cls = klass_info["model"]
+        # RemovedInDjango70Warning: When the deprecation ends, replace with:
+        # self.from_db = partial(self.model_cls.from_db, fetch_mode=fetch_mode)
+        self.from_db = _get_from_db(self.model_cls, fetch_mode)
         # A primary key must have all of its constituents not-NULL as
         # NULL != NULL and thus NULL cannot be referenced through a foreign
         # relationship. Therefore checking for a single member of the primary
@@ -3041,11 +3071,10 @@ class RelatedPopulator:
         if obj_data[self.pk_idx] is None:
             obj = None
         else:
-            obj = self.model_cls.from_db(
+            obj = self.from_db(
                 self.db,
                 self.init_list,
                 obj_data,
-                fetch_mode=self.fetch_mode,
             )
             for rel_iter in self.related_populators:
                 rel_iter.populate(row, obj)
