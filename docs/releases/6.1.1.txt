@@ -9,4 +9,9 @@ Django 6.1.1 fixes several bugs in 6.1.
 Bugfixes
 ========
 
-* ...
+* Fixed a regression in Django 6.1 that caused a ``TypeError`` crash when
+  rendering or submitting ``LoginView`` and ``LogoutView`` subclasses that
+  override ``get_success_url_allowed_hosts()`` without the ``request``
+  parameter added in Django 6.1. Such overrides are called without arguments
+  again, and now emit a deprecation warning; support for overrides that don't
+  accept ``request=None`` will be removed in Django 7.0 (:ticket:`XXXXX`).

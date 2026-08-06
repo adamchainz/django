@@ -35,6 +35,7 @@ from django.middleware.csrf import CsrfViewMiddleware, get_token
 from django.test import Client, TestCase, modify_settings, override_settings
 from django.test.client import RedirectCycleError
 from django.urls import NoReverseMatch, reverse, reverse_lazy
+from django.utils.deprecation import RemovedInDjango70Warning
 from django.utils.http import urlsafe_base64_encode
 
 from .client import PasswordResetConfirmClient
@@ -1245,6 +1246,61 @@ class LoginSuccessURLAllowedHostsTest(AuthViewsTestCase):
             response, "/accounts/profile/", fetch_redirect_response=False
         )
 
+    def test_success_url_allowed_hosts_deprecated_signature_page_render(self):
+        # RemovedInDjango70Warning: pre-Django 6.1 signature without request.
+        msg = (
+            "`request=None` must be added to the signature of "
+            "LegacyAllowedHostsLoginView.get_success_url_allowed_hosts()."
+        )
+        with self.assertWarnsMessage(RemovedInDjango70Warning, msg):
+            response = self.client.get(
+                "/login/allowed_hosts/legacy/?next=https://otherserver/home"
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context[REDIRECT_FIELD_NAME], "https://otherserver/home"
+        )
+
+    def test_success_url_allowed_hosts_deprecated_signature_safe_host(self):
+        # RemovedInDjango70Warning: pre-Django 6.1 signature without request.
+        msg = (
+            "`request=None` must be added to the signature of "
+            "LegacyAllowedHostsLoginView.get_success_url_allowed_hosts()."
+        )
+        with self.assertWarnsMessage(RemovedInDjango70Warning, msg):
+            response = self.client.post(
+                "/login/allowed_hosts/legacy/",
+                {
+                    "username": "testclient",
+                    "password": "password",
+                    "next": "https://otherserver/home",
+                },
+            )
+        self.assertIn(SESSION_KEY, self.client.session)
+        self.assertRedirects(
+            response, "https://otherserver/home", fetch_redirect_response=False
+        )
+
+    def test_success_url_allowed_hosts_deprecated_signature_unsafe_host(self):
+        # RemovedInDjango70Warning: pre-Django 6.1 signature without request.
+        msg = (
+            "`request=None` must be added to the signature of "
+            "LegacyAllowedHostsLoginView.get_success_url_allowed_hosts()."
+        )
+        with self.assertWarnsMessage(RemovedInDjango70Warning, msg):
+            response = self.client.post(
+                "/login/allowed_hosts/legacy/",
+                {
+                    "username": "testclient",
+                    "password": "password",
+                    "next": "https://evil/home",
+                },
+            )
+        self.assertIn(SESSION_KEY, self.client.session)
+        self.assertRedirects(
+            response, "/accounts/profile/", fetch_redirect_response=False
+        )
+
 
 class LogoutTest(AuthViewsTestCase):
     def confirm_logged_out(self):
@@ -1339,6 +1395,22 @@ class LogoutTest(AuthViewsTestCase):
         response = self.client.post("/logout/allowed_hosts/?next=https://evil/")
         self.assertRedirects(
             response, "/logout/allowed_hosts/", fetch_redirect_response=False
+        )
+        self.confirm_logged_out()
+
+    def test_success_url_allowed_hosts_deprecated_signature(self):
+        # RemovedInDjango70Warning: pre-Django 6.1 signature without request.
+        self.login()
+        msg = (
+            "`request=None` must be added to the signature of "
+            "LegacyAllowedHostsLogoutView.get_success_url_allowed_hosts()."
+        )
+        with self.assertWarnsMessage(RemovedInDjango70Warning, msg):
+            response = self.client.post(
+                "/logout/allowed_hosts/legacy/?next=https://otherserver/"
+            )
+        self.assertRedirects(
+            response, "https://otherserver/", fetch_redirect_response=False
         )
         self.confirm_logged_out()
 

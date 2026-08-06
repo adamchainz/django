@@ -94,6 +94,18 @@ class CustomDefaultRedirectURLLoginView(LoginView):
         return "/custom/"
 
 
+# RemovedInDjango70Warning: pre-Django 6.1 signature without request.
+class LegacyAllowedHostsLoginView(LoginView):
+    def get_success_url_allowed_hosts(self):
+        return {"otherserver"}
+
+
+# RemovedInDjango70Warning: pre-Django 6.1 signature without request.
+class LegacyAllowedHostsLogoutView(views.LogoutView):
+    def get_success_url_allowed_hosts(self):
+        return {"otherserver"}
+
+
 class EmptyResponseBaseView(View):
     def get(self, request, *args, **kwargs):
         return HttpResponse()
@@ -142,6 +154,10 @@ urlpatterns = auth_urlpatterns + [
     path(
         "logout/allowed_hosts/",
         views.LogoutView.as_view(success_url_allowed_hosts={"otherserver"}),
+    ),
+    path(
+        "logout/allowed_hosts/legacy/",
+        LegacyAllowedHostsLogoutView.as_view(),
     ),
     path("remote_user/", remote_user_auth_view),
     path(
@@ -228,6 +244,10 @@ urlpatterns = auth_urlpatterns + [
     path(
         "login/allowed_hosts/",
         views.LoginView.as_view(success_url_allowed_hosts={"otherserver"}),
+    ),
+    path(
+        "login/allowed_hosts/legacy/",
+        LegacyAllowedHostsLoginView.as_view(),
     ),
     path(
         "login/get_default_redirect_url/", CustomDefaultRedirectURLLoginView.as_view()

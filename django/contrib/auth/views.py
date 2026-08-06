@@ -1,3 +1,4 @@
+import warnings
 from urllib.parse import urlsplit, urlunsplit
 
 from django.conf import settings
@@ -21,7 +22,9 @@ from django.http import HttpResponseRedirect, QueryDict
 from django.shortcuts import resolve_url
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
+from django.utils.deprecation import RemovedInDjango70Warning
 from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_decode
+from django.utils.inspect import func_supports_parameter
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
@@ -51,9 +54,20 @@ class RedirectURLMixin:
         redirect_to = request.POST.get(
             self.redirect_field_name, request.GET.get(self.redirect_field_name)
         )
+        # RemovedInDjango70Warning: When the deprecation ends, replace with:
+        # allowed_hosts = self.get_success_url_allowed_hosts(request)
+        if func_supports_parameter(self.get_success_url_allowed_hosts, "request"):
+            allowed_hosts = self.get_success_url_allowed_hosts(request)
+        else:
+            warnings.warn(
+                "`request=None` must be added to the signature of "
+                f"{self.__class__.__qualname__}.get_success_url_allowed_hosts().",
+                category=RemovedInDjango70Warning,
+            )
+            allowed_hosts = self.get_success_url_allowed_hosts()
         url_is_safe = url_has_allowed_host_and_scheme(
             url=redirect_to,
-            allowed_hosts=self.get_success_url_allowed_hosts(request),
+            allowed_hosts=allowed_hosts,
             require_https=request.is_secure(),
         )
         return redirect_to if url_is_safe else ""
