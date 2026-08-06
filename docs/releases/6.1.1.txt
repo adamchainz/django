@@ -9,4 +9,8 @@ Django 6.1.1 fixes several bugs in 6.1.
 Bugfixes
 ========
 
-* ...
+* Fixed a regression in Django 6.1 that caused ``AlterField`` operations that
+  changed only the Python-level ``on_delete`` option of ``ForeignKey`` or
+  ``OneToOneField`` fields to perform unnecessary schema changes, such as
+  rebuilding foreign key constraints or, on SQLite, the whole table
+  (:ticket:`XXXXX`).
