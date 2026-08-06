@@ -343,7 +343,14 @@ class SQLCompiler:
             ordering = self.query.order_by
         elif self.query.order_by:
             ordering = self.query.order_by
-        elif (meta := self.query.get_meta()) and meta.ordering:
+        elif (
+            (meta := self.query.get_meta())
+            and meta.ordering
+            # The default ordering cannot be applied to combined queries with
+            # a limited list of selected fields, e.g. through values(), as the
+            # ordering columns cannot be added to the result set.
+            and not (self.query.combinator and self.query.has_select_fields)
+        ):
             ordering = meta.ordering
             self._meta_ordering = ordering
         else:

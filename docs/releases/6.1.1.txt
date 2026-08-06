@@ -9,4 +9,8 @@ Django 6.1.1 fixes several bugs in 6.1.
 Bugfixes
 ========
 
-* ...
+* Fixed a regression in Django 6.1 that caused a crash when combining
+  querysets with :meth:`.QuerySet.values` or :meth:`.QuerySet.values_list`,
+  e.g. through :meth:`.QuerySet.union`, on models with ``Meta.ordering``
+  when the ordering columns were not part of the selected fields
+  (:ticket:`XXXXX`).
