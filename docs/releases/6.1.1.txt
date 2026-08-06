@@ -9,4 +9,7 @@ Django 6.1.1 fixes several bugs in 6.1.
 Bugfixes
 ========
 
-* ...
+* Fixed a regression in Django 6.1 where html-safe strings, such as those
+  created with :func:`~django.utils.safestring.mark_safe`, used as form media
+  assets were treated as asset paths rather than being rendered verbatim
+  (:ticket:`XXXXX`).

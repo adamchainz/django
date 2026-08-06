@@ -152,13 +152,28 @@ class Media:
 
     @staticmethod
     def _normalize_js(js):
-        return [Script(path) if isinstance(path, str) else path for path in js]
+        # Leave html-safe strings, such as SafeString, un-normalized so that
+        # they are rendered verbatim.
+        return [
+            (
+                Script(path)
+                if isinstance(path, str) and not hasattr(path, "__html__")
+                else path
+            )
+            for path in js
+        ]
 
     @staticmethod
     def _normalize_css(css):
+        # Leave html-safe strings, such as SafeString, un-normalized so that
+        # they are rendered verbatim.
         return {
             medium: [
-                Stylesheet(path, media=medium) if isinstance(path, str) else path
+                (
+                    Stylesheet(path, media=medium)
+                    if isinstance(path, str) and not hasattr(path, "__html__")
+                    else path
+                )
                 for path in paths
             ]
             for medium, paths in css.items()
