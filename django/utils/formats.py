@@ -8,6 +8,7 @@ from importlib import import_module
 from django.conf import settings
 from django.utils import dateformat, numberformat
 from django.utils.functional import lazy
+from django.utils.safestring import mark_safe
 from django.utils.translation import check_for_language, get_language, to_locale
 
 # format_cache is a mapping from (format_type, lang) to the format string.
@@ -178,6 +179,16 @@ def number_format(value, decimal_pos=None, use_l10n=None, force_grouping=False):
     """
     if use_l10n is None:
         use_l10n = True
+    # Make the common case fast: plain ints without grouping don't need the
+    # localized separator formats. This mirrors the shortcut in
+    # numberformat.format() but also avoids the format lookups.
+    if (
+        isinstance(value, int)
+        and not decimal_pos
+        and not force_grouping
+        and not (use_l10n and settings.USE_THOUSAND_SEPARATOR)
+    ):
+        return mark_safe(value)
     lang = get_language() if use_l10n else None
     return numberformat.format(
         value,
