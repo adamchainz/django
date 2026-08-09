@@ -294,13 +294,18 @@ class Apps:
         """
         to_string = to_string.lower()
         for model in self.get_models(include_swapped=True):
-            swapped = model._meta.swapped
+            meta = model._meta
+            # Only swappable models can match, and computing swapped is
+            # comparatively expensive for them.
+            if not meta.swappable:
+                continue
+            swapped = meta.swapped
             # Is this model swapped out for the model given by to_string?
             if swapped and swapped.lower() == to_string:
-                return model._meta.swappable
-            # Is this model swappable and the one given by to_string?
-            if model._meta.swappable and model._meta.label_lower == to_string:
-                return model._meta.swappable
+                return meta.swappable
+            # Is this model the one given by to_string?
+            if meta.label_lower == to_string:
+                return meta.swappable
         return None
 
     def set_available_apps(self, available):
