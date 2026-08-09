@@ -1,6 +1,7 @@
 import copy
 import operator
 from functools import wraps
+from types import MethodType
 
 
 class cached_property:
@@ -278,9 +279,12 @@ class LazyObject:
             # Avoid recursion when getting wrapped object.
             return super().__getattribute__(name)
         value = super().__getattribute__(name)
-        # If attribute is a proxy method, raise an AttributeError to call
+        # If attribute is a proxy method, which is only ever a method bound
+        # from a new_method_proxy() wrapper, raise an AttributeError to call
         # __getattr__() and use the wrapped object method.
-        if not getattr(value, "_mask_wrapped", True):
+        if type(value) is MethodType and not value.__func__.__dict__.get(
+            "_mask_wrapped", True
+        ):
             raise AttributeError
         return value
 
