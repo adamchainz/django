@@ -6,6 +6,7 @@ import datetime
 import decimal
 import warnings
 from collections.abc import Mapping
+from functools import lru_cache
 from itertools import chain, tee
 from sqlite3 import dbapi2 as Database
 
@@ -358,6 +359,12 @@ class DatabaseWrapper(BaseDatabaseWrapper):
 FORMAT_QMARK_REGEX = _lazy_re_compile(r"(?<!%)%s")
 
 
+@lru_cache(maxsize=512)
+def _format_to_qmark(query):
+    # Convert from "format" style to "qmark" style.
+    return FORMAT_QMARK_REGEX.sub("?", query).replace("%%", "%")
+
+
 class SQLiteCursorWrapper(Database.Cursor):
     """
     Django uses the "format" and "pyformat" styles, but Python's sqlite3 module
@@ -392,8 +399,7 @@ class SQLiteCursorWrapper(Database.Cursor):
 
     def convert_query(self, query, *, param_names=None):
         if param_names is None:
-            # Convert from "format" style to "qmark" style.
-            return FORMAT_QMARK_REGEX.sub("?", query).replace("%%", "%")
+            return _format_to_qmark(query)
         else:
             # Convert from "pyformat" style to "named" style.
             return query % {name: f":{name}" for name in param_names}
