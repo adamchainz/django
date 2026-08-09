@@ -166,13 +166,22 @@ class Template:
 
     def render(self, context):
         "Display stage -- can be called many times"
-        with context.render_context.push_state(self):
+        # Equivalent to `with context.render_context.push_state(self):` but
+        # inlined to avoid the context manager overhead on every render.
+        render_context = context.render_context
+        initial = render_context.template
+        render_context.template = self
+        render_context.push()
+        try:
             if context.template is None:
                 with context.bind_template(self):
                     context.template_name = self.name
                     return self._render(context)
             else:
                 return self._render(context)
+        finally:
+            render_context.template = initial
+            render_context.pop()
 
     def compile_nodelist(self):
         """
@@ -336,13 +345,22 @@ class PartialTemplate:
         return self.nodelist.render(context)
 
     def render(self, context):
-        with context.render_context.push_state(self):
+        # Equivalent to `with context.render_context.push_state(self):` but
+        # inlined to avoid the context manager overhead on every render.
+        render_context = context.render_context
+        initial = render_context.template
+        render_context.template = self
+        render_context.push()
+        try:
             if context.template is None:
                 with context.bind_template(self):
                     context.template_name = self.name
                     return self._render(context)
             else:
                 return self._render(context)
+        finally:
+            render_context.template = initial
+            render_context.pop()
 
 
 def linebreak_iter(template_source):
