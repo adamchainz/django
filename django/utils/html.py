@@ -119,6 +119,13 @@ def conditional_escape(text):
     This function relies on the __html__ convention used both by Django's
     SafeData class and by third-party libraries like markupsafe.
     """
+    # Fast paths for the most common types, equivalent to the generic code
+    # below.
+    text_type = type(text)
+    if text_type is SafeString:
+        return text
+    if text_type is str:
+        return SafeString(html.escape(text))
     if isinstance(text, Promise):
         text = str(text)
     if hasattr(text, "__html__"):
