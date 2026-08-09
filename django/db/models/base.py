@@ -505,7 +505,8 @@ class Model(AltersData, metaclass=ModelBase):
         if opts.abstract:
             raise TypeError("Abstract models cannot be instantiated.")
 
-        pre_init.send(sender=cls, args=args, kwargs=kwargs)
+        if pre_init.receivers:
+            pre_init.send(sender=cls, args=args, kwargs=kwargs)
 
         # Set up the storage for instance state
         self._state = ModelState()
@@ -609,7 +610,8 @@ class Model(AltersData, metaclass=ModelBase):
                     f"{unexpected_names}"
                 )
         super().__init__()
-        post_init.send(sender=cls, instance=self)
+        if post_init.receivers:
+            post_init.send(sender=cls, instance=self)
 
     @classmethod
     def from_db(cls, db, field_names, values, *, fetch_mode=None):
