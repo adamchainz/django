@@ -107,11 +107,16 @@ def get_format(format_type, lang=None, use_l10n=None):
     If use_l10n is provided and is not None, it forces the value to
     be localized (or not), otherwise it's always localized.
     """
+    format_type = str(format_type)  # format_type may be lazy.
+    if not format_type.isidentifier():
+        # A literal format string, such as the date filter's argument, rather
+        # than the name of a format setting that a format module or the
+        # project settings could define.
+        return format_type
     if use_l10n is None:
         use_l10n = True
     if use_l10n and lang is None:
         lang = get_language()
-    format_type = str(format_type)  # format_type may be lazy.
     cache_key = (format_type, lang)
     try:
         return _format_cache[cache_key]
