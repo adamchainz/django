@@ -142,6 +142,11 @@ class DatabaseWrapper(BaseDatabaseWrapper):
 
     transaction_modes = frozenset(["DEFERRED", "EXCLUSIVE", "IMMEDIATE"])
 
+    # Value of self.connection.total_changes at the last successful full
+    # foreign key check, used to skip redundant checks, or None if a full
+    # check is required.
+    _check_constraints_total_changes = None
+
     Database = Database
     SchemaEditorClass = DatabaseSchemaEditor
     # Classes instantiated in __init__().
@@ -202,6 +207,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
 
     @async_unsafe
     def get_new_connection(self, conn_params):
+        self._check_constraints_total_changes = None
         conn = Database.connect(**conn_params)
         register_functions(conn)
 
@@ -247,6 +253,10 @@ class DatabaseWrapper(BaseDatabaseWrapper):
             self.connection.isolation_level = level
 
     def disable_constraint_checking(self):
+        # Schema changes may be made while constraint checking is disabled,
+        # which total_changes cannot detect, so drop the watermark used to
+        # skip redundant checks in check_constraints().
+        self._check_constraints_total_changes = None
         with self.cursor() as cursor:
             cursor.execute("PRAGMA foreign_keys = OFF")
             # Foreign key constraints cannot be turned off while in a multi-
@@ -267,6 +277,15 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         determine if rows with invalid references were entered while constraint
         checks were off.
         """
+        if table_names is None:
+            # Skip the full check if no rows have been inserted, updated, or
+            # deleted since the last one, as no new violations can have been
+            # introduced. total_changes cannot detect schema changes, so the
+            # watermark is dropped in disable_constraint_checking().
+            self.ensure_connection()
+            total_changes = self.connection.total_changes
+            if total_changes == self._check_constraints_total_changes:
+                return
         with self.cursor() as cursor:
             if table_names is None:
                 violations = cursor.execute("PRAGMA foreign_key_check").fetchall()
@@ -314,6 +333,8 @@ class DatabaseWrapper(BaseDatabaseWrapper):
                         referenced_column_name,
                     )
                 )
+        if table_names is None:
+            self._check_constraints_total_changes = total_changes
 
     def is_usable(self):
         return True

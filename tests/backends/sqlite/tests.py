@@ -141,6 +141,39 @@ class Tests(TestCase):
 
 
 @unittest.skipUnless(connection.vendor == "sqlite", "SQLite tests")
+class CheckConstraintsTests(TestCase):
+    def test_skipped_when_database_unchanged(self):
+        Square.objects.create(root=2, square=4)
+        with CaptureQueriesContext(connection) as ctx:
+            connection.check_constraints()
+        self.assertNotEqual(ctx.captured_queries, [])
+        with CaptureQueriesContext(connection) as ctx:
+            connection.check_constraints()
+        self.assertEqual(ctx.captured_queries, [])
+
+    def test_run_when_database_changed(self):
+        connection.check_constraints()
+        Square.objects.create(root=2, square=4)
+        with CaptureQueriesContext(connection) as ctx:
+            connection.check_constraints()
+        self.assertNotEqual(ctx.captured_queries, [])
+
+    def test_run_after_constraint_checks_disabled(self):
+        connection.check_constraints()
+        connection.disable_constraint_checking()
+        connection.enable_constraint_checking()
+        with CaptureQueriesContext(connection) as ctx:
+            connection.check_constraints()
+        self.assertNotEqual(ctx.captured_queries, [])
+
+    def test_run_with_table_names(self):
+        connection.check_constraints()
+        with CaptureQueriesContext(connection) as ctx:
+            connection.check_constraints(table_names=[Square._meta.db_table])
+        self.assertNotEqual(ctx.captured_queries, [])
+
+
+@unittest.skipUnless(connection.vendor == "sqlite", "SQLite tests")
 @isolate_apps("backends")
 class SchemaTests(TransactionTestCase):
     available_apps = ["backends"]
