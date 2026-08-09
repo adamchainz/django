@@ -253,9 +253,12 @@ class AppConfig:
         """
         self.apps.check_models_ready()
         for model in self.models.values():
-            if model._meta.auto_created and not include_auto_created:
+            meta = model._meta
+            if not include_auto_created and meta.auto_created:
                 continue
-            if model._meta.swapped and not include_swapped:
+            # swapped is a comparatively expensive property that can only be
+            # non-None for swappable models.
+            if not include_swapped and meta.swappable and meta.swapped:
                 continue
             yield model
 
