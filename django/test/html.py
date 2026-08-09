@@ -77,8 +77,12 @@ class Element:
         if isinstance(element, str):
             element = normalize_whitespace(element)
             if self.children and isinstance(self.children[-1], str):
-                self.children[-1] += element
-                self.children[-1] = normalize_whitespace(self.children[-1])
+                # Concatenating two normalized strings can only introduce a
+                # duplicate space at the junction.
+                last = self.children[-1]
+                if last.endswith(" ") and element.startswith(" "):
+                    element = element[1:]
+                self.children[-1] = last + element
                 return
         elif self.children:
             # removing last children if it is only whitespace
@@ -106,11 +110,12 @@ class Element:
                 child.finalize()
 
     def __eq__(self, element):
-        if not hasattr(element, "name") or self.name != element.name:
-            return False
-        if self.attributes != element.attributes:
-            return False
-        return self.children == element.children
+        return (
+            isinstance(element, Element)
+            and self.name == element.name
+            and self.attributes == element.attributes
+            and self.children == element.children
+        )
 
     def __hash__(self):
         return hash((self.name, *self.attributes))
