@@ -1,6 +1,8 @@
 import datetime
 import decimal
+import re
 import uuid
+from collections import defaultdict
 from functools import lru_cache
 from itertools import chain
 
@@ -13,6 +15,7 @@ from django.db.models.expressions import Col
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime, parse_time
 from django.utils.functional import cached_property
+from django.utils.regex_helper import _lazy_re_compile
 
 from .base import Database
 
@@ -192,24 +195,29 @@ class DatabaseOperations(BaseDatabaseOperations):
     def no_limit_value(self):
         return -1
 
+    references_re = _lazy_re_compile(
+        r"\s+references\s+[\"']?(.+?)[\"']?\s*\(", re.IGNORECASE
+    )
+
     def __references_graph(self, table_name):
-        query = """
-        WITH tables AS (
-            SELECT %s name
-            UNION
-            SELECT sqlite_master.name
-            FROM sqlite_master
-            JOIN tables ON (sql REGEXP %s || tables.name || %s)
-        ) SELECT name FROM tables;
-        """
-        params = (
-            table_name,
-            r'(?i)\s+references\s+("|\')?',
-            r'("|\')?\s*\(',
-        )
         with self.connection.cursor() as cursor:
-            results = cursor.execute(query, params)
-            return [row[0] for row in results.fetchall()]
+            rows = cursor.execute(
+                "SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL"
+            ).fetchall()
+        # Map each referenced table to the tables whose DDL references it.
+        references = defaultdict(set)
+        for name, sql in rows:
+            for referenced in self.references_re.findall(sql):
+                references[referenced.lower()].add(name)
+        # Collect the tables referencing table_name, directly or transitively.
+        result = {table_name}
+        stack = [table_name]
+        while stack:
+            for referencing in references.pop(stack.pop().lower(), ()):
+                if referencing not in result:
+                    result.add(referencing)
+                    stack.append(referencing)
+        return list(result)
 
     @cached_property
     def _references_graph(self):
