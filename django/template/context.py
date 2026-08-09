@@ -13,7 +13,9 @@ class ContextPopException(Exception):
 
 class ContextDict(dict):
     def __init__(self, context, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        # dict is already initialized empty by __new__().
+        if args or kwargs:
+            super().__init__(*args, **kwargs)
 
         context.dicts.append(self)
         self.context = context
