@@ -199,21 +199,36 @@ class DatabaseOperations(BaseDatabaseOperations):
         r"\s+references\s+[\"']?(.+?)[\"']?\s*\(", re.IGNORECASE
     )
 
-    def __references_graph(self, table_name):
+    _references_map_cache = None
+
+    def _references_map(self):
+        """
+        Return a mapping of each lowercased table name to the set of tables
+        whose DDL references it, cached per schema version.
+        """
         with self.connection.cursor() as cursor:
+            version = cursor.execute("PRAGMA schema_version").fetchone()[0]
+            if (cache := self._references_map_cache) is not None and cache[
+                0
+            ] == version:
+                return cache[1]
             rows = cursor.execute(
                 "SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL"
             ).fetchall()
-        # Map each referenced table to the tables whose DDL references it.
         references = defaultdict(set)
         for name, sql in rows:
             for referenced in self.references_re.findall(sql):
                 references[referenced.lower()].add(name)
+        self._references_map_cache = (version, references)
+        return references
+
+    def __references_graph(self, table_name):
+        references = self._references_map()
         # Collect the tables referencing table_name, directly or transitively.
         result = {table_name}
         stack = [table_name]
         while stack:
-            for referencing in references.pop(stack.pop().lower(), ()):
+            for referencing in references.get(stack.pop().lower(), ()):
                 if referencing not in result:
                     result.add(referencing)
                     stack.append(referencing)
