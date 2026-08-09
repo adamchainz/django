@@ -397,8 +397,11 @@ class Apps:
             # refilled. This particularly prevents that an empty value is
             # cached while cloning.
             for app_config in self.app_configs.values():
-                for model in app_config.get_models(include_auto_created=True):
-                    model._meta._expire_cache()
+                for model in app_config.models.values():
+                    meta = model._meta
+                    if meta.swappable and meta.swapped:
+                        continue
+                    meta._expire_cache()
 
     def lazy_model_operation(self, function, *model_keys):
         """
