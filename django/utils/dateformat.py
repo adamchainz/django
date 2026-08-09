@@ -14,6 +14,7 @@ Usage:
 import calendar
 from datetime import date, datetime, time
 from email.utils import format_datetime as format_datetime_rfc5322
+from functools import lru_cache
 
 from django.utils.dates import (
     MONTHS,
@@ -36,19 +37,35 @@ re_formatchars = _lazy_re_compile(r"(?<!\\)([aAbcdDeEfFgGhHiIjlLmMnNoOPrsStTUuwW
 re_escaped = _lazy_re_compile(r"\\(.)")
 
 
+@lru_cache(maxsize=256)
+def _parse_format_string(formatstr):
+    """
+    Split a format string into (is_format_char, value) pairs, with escapes in
+    the literal parts already processed.
+    """
+    pieces = []
+    for i, piece in enumerate(re_formatchars.split(formatstr)):
+        if i % 2:
+            pieces.append((True, piece))
+        elif piece:
+            pieces.append((False, re_escaped.sub(r"\1", piece)))
+    return pieces
+
+
 class Formatter:
     def format(self, formatstr):
         pieces = []
-        for i, piece in enumerate(re_formatchars.split(str(formatstr))):
-            if i % 2:
-                if type(self.data) is date and hasattr(TimeFormat, piece):
+        is_date = type(self.data) is date
+        for is_format_char, piece in _parse_format_string(str(formatstr)):
+            if is_format_char:
+                if is_date and hasattr(TimeFormat, piece):
                     raise TypeError(
                         "The format for date objects may not contain "
                         "time-related format specifiers (found '%s')." % piece
                     )
                 pieces.append(str(getattr(self, piece)()))
-            elif piece:
-                pieces.append(re_escaped.sub(r"\1", piece))
+            else:
+                pieces.append(piece)
         return "".join(pieces)
 
 
