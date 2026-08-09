@@ -33,6 +33,10 @@ class Apps:
         # all_models is never overridden or reset.
         self.all_models = defaultdict(dict)
 
+        # List of registered models with a swappable setting, appended to by
+        # register_model(). Used by get_swappable_settings_name().
+        self._swappable_models = []
+
         # Mapping of labels to AppConfig instances for installed apps.
         self.app_configs = {}
 
@@ -236,6 +240,8 @@ class Apps:
                     % (model_name, app_label, app_models[model_name], model)
                 )
         app_models[model_name] = model
+        if model._meta.swappable:
+            self._swappable_models.append(model)
         self.do_pending_operations(model)
         self.clear_cache()
 
@@ -292,12 +298,16 @@ class Apps:
         don't change after Django has loaded the settings, there is no reason
         to get the respective settings attribute over and over again.
         """
+        self.check_models_ready()
         to_string = to_string.lower()
-        for model in self.get_models(include_swapped=True):
+        for model in self._swappable_models:
             meta = model._meta
-            # Only swappable models can match, and computing swapped is
-            # comparatively expensive for them.
-            if not meta.swappable:
+            # Skip models that aren't in an installed app or were replaced by
+            # a later registration.
+            if (
+                meta.app_label not in self.app_configs
+                or self.all_models[meta.app_label].get(meta.model_name) is not model
+            ):
                 continue
             swapped = meta.swapped
             # Is this model swapped out for the model given by to_string?
