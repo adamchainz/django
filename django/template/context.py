@@ -51,6 +51,8 @@ class BaseContext:
         return reversed(self.dicts)
 
     def push(self, *args, **kwargs):
+        if not args:
+            return ContextDict(self, **kwargs)
         dicts = []
         for d in args:
             if isinstance(d, BaseContext):
