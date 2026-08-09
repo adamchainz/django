@@ -30,9 +30,12 @@ class CursorWrapper:
     def __getattr__(self, attr):
         cursor_attr = getattr(self.cursor, attr)
         if attr in CursorWrapper.WRAP_ERROR_ATTRS:
-            return self.db.wrap_database_errors(cursor_attr)
-        else:
-            return cursor_attr
+            # Cache the wrapped method on the instance so that later accesses
+            # skip __getattr__() and the rewrapping. The other, non-method
+            # attributes cannot be cached as they may change between calls.
+            cursor_attr = self.db.wrap_database_errors(cursor_attr)
+            setattr(self, attr, cursor_attr)
+        return cursor_attr
 
     def __iter__(self):
         with self.db.wrap_database_errors:

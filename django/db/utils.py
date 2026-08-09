@@ -1,4 +1,5 @@
 import pkgutil
+import sys
 from importlib import import_module
 
 from django.conf import settings
@@ -97,8 +98,13 @@ class DatabaseErrorWrapper:
         # Note that we are intentionally not using @wraps here for performance
         # reasons. Refs #21109.
         def inner(*args, **kwargs):
-            with self:
+            # Faster inlining of `with self:` - __enter__() is a no-op and
+            # __exit__() only acts on exceptions.
+            try:
                 return func(*args, **kwargs)
+            except Exception:
+                self.__exit__(*sys.exc_info())
+                raise
 
         return inner
 
