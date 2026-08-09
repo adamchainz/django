@@ -213,18 +213,25 @@ class ForNode(Node):
                 "parentloop": parentloop,
                 "length": len_values,
             }
+            nodelist_loop = self.nodelist_loop
+            append = nodelist.append
+            last_index = len_values - 1
+            if not unpack:
+                loopvar = self.loopvars[0]
+                # The dict pushed above, written to directly to avoid
+                # __setitem__() calls for every iteration.
+                inner_dict = context.dicts[-1]
             for i, item in enumerate(values):
                 # Shortcuts for current loop iteration number.
                 loop_dict["counter0"] = i
                 loop_dict["counter"] = i + 1
                 # Reverse counter iteration numbers.
                 loop_dict["revcounter"] = len_values - i
-                loop_dict["revcounter0"] = len_values - i - 1
+                loop_dict["revcounter0"] = last_index - i
                 # Boolean values designating first and last times through loop.
                 loop_dict["first"] = i == 0
-                loop_dict["last"] = i == len_values - 1
+                loop_dict["last"] = i == last_index
 
-                pop_context = False
                 if unpack:
                     # If there are multiple loop variables, unpack the item
                     # into them.
@@ -240,15 +247,14 @@ class ForNode(Node):
                             ),
                         )
                     unpacked_vars = dict(zip(self.loopvars, item))
-                    pop_context = True
                     context.update(unpacked_vars)
                 else:
-                    context[self.loopvars[0]] = item
+                    inner_dict[loopvar] = item
 
-                for node in self.nodelist_loop:
-                    nodelist.append(node.render_annotated(context))
+                for node in nodelist_loop:
+                    append(node.render_annotated(context))
 
-                if pop_context:
+                if unpack:
                     # Pop the loop variables pushed on to the context to avoid
                     # the context ending up in an inconsistent state when other
                     # tags (e.g., include and with) push data to context.
