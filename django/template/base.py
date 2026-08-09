@@ -876,15 +876,21 @@ class Variable:
         if not isinstance(var, str):
             raise TypeError("Variable must be a string or number, got %s" % type(var))
         try:
-            # First try to treat this variable as a number.
+            # First try to treat this variable as a number, if it can start
+            # one. This avoids paying for a ValueError for every non-numeric
+            # variable.
             #
             # Note that this could cause an OverflowError here that we're not
             # catching. Since this should only happen at compile time, that's
             # probably OK.
+            if not var or (
+                var[0] not in "+-." and not var[0].isdigit() and not var[0].isspace()
+            ):
+                raise ValueError
 
             # Try to interpret values containing a period or an 'e'/'E'
             # (possibly scientific notation) as a float;  otherwise, try int.
-            if "." in var or "e" in var.lower():
+            if "." in var or "e" in var or "E" in var:
                 self.literal = float(var)
                 # "2." is invalid
                 if var[-1] == ".":
