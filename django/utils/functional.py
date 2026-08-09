@@ -1,5 +1,4 @@
 import copy
-import itertools
 import operator
 from functools import wraps
 
@@ -223,11 +222,12 @@ def keep_lazy(*resultclasses):
 
         @wraps(func)
         def wrapper(*args, **kwargs):
-            if any(
-                isinstance(arg, Promise)
-                for arg in itertools.chain(args, kwargs.values())
-            ):
-                return lazy_func(*args, **kwargs)
+            for arg in args:
+                if isinstance(arg, Promise):
+                    return lazy_func(*args, **kwargs)
+            for arg in kwargs.values():
+                if isinstance(arg, Promise):
+                    return lazy_func(*args, **kwargs)
             return func(*args, **kwargs)
 
         return wrapper
