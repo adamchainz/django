@@ -961,39 +961,24 @@ class Variable:
         current = context
         try:  # catch-all for silent variable failures
             for bit in self.lookups:
-                try:  # dictionary lookup
-                    # Only allow if the metaclass implements __getitem__. See
-                    # https://docs.python.org/3/reference/datamodel.html#classgetitem-versus-getitem
-                    if not hasattr(type(current), "__getitem__"):
-                        raise TypeError
-                    current = current[bit]
-                    # ValueError/IndexError are for numpy.array lookup on
-                    # numpy < 1.9 and 1.9+ respectively
-                except (TypeError, AttributeError, KeyError, ValueError, IndexError):
-                    try:  # attribute lookup
-                        # Don't return class attributes if the class is the
-                        # context:
-                        if isinstance(current, BaseContext) and getattr(
-                            type(current), bit
-                        ):
-                            raise AttributeError
-                        current = getattr(current, bit)
-                    except (TypeError, AttributeError):
-                        # Reraise if the exception was raised by a @property
-                        if not isinstance(current, BaseContext) and bit in dir(current):
-                            raise
-                        try:  # list-index lookup
-                            current = current[int(bit)]
-                        except (
-                            IndexError,  # list index out of range
-                            ValueError,  # invalid literal for int()
-                            KeyError,  # current is a dict without `int(bit)` key
-                            TypeError,
-                        ):  # unsubscriptable object
-                            raise VariableDoesNotExist(
-                                "Failed lookup for key [%s] in %r",
-                                (bit, current),
-                            )  # missing attribute
+                # Dictionary lookup is only allowed if the metaclass
+                # implements __getitem__. See
+                # https://docs.python.org/3/reference/datamodel.html#classgetitem-versus-getitem
+                if hasattr(type(current), "__getitem__"):
+                    try:  # dictionary lookup
+                        current = current[bit]
+                        # ValueError/IndexError are for numpy.array lookup on
+                        # numpy < 1.9 and 1.9+ respectively
+                    except (
+                        TypeError,
+                        AttributeError,
+                        KeyError,
+                        ValueError,
+                        IndexError,
+                    ):
+                        current = self._resolve_attribute_lookup(current, bit)
+                else:
+                    current = self._resolve_attribute_lookup(current, bit)
                 if callable(current):
                     if getattr(current, "do_not_call_in_templates", False):
                         pass
@@ -1030,6 +1015,30 @@ class Variable:
                 raise
 
         return current
+
+    @staticmethod
+    def _resolve_attribute_lookup(current, bit):
+        try:  # attribute lookup
+            # Don't return class attributes if the class is the context:
+            if isinstance(current, BaseContext) and getattr(type(current), bit):
+                raise AttributeError
+            return getattr(current, bit)
+        except (TypeError, AttributeError):
+            # Reraise if the exception was raised by a @property
+            if not isinstance(current, BaseContext) and bit in dir(current):
+                raise
+            try:  # list-index lookup
+                return current[int(bit)]
+            except (
+                IndexError,  # list index out of range
+                ValueError,  # invalid literal for int()
+                KeyError,  # current is a dict without `int(bit)` key
+                TypeError,
+            ):  # unsubscriptable object
+                raise VariableDoesNotExist(
+                    "Failed lookup for key [%s] in %r",
+                    (bit, current),
+                )  # missing attribute
 
 
 class Node:
