@@ -523,11 +523,22 @@ class TestUtilsHashPass(SimpleTestCase):
                         hasher.encode("password", salt)
 
     def test_password_and_salt_in_str_and_bytes(self):
+        # str/bytes handling doesn't depend on the hashers' work factors, so
+        # use low ones to keep the many encode/verify combinations fast.
+        class LowIterationPBKDF2PasswordHasher(PBKDF2PasswordHasher):
+            iterations = 1
+
+        class LowIterationPBKDF2SHA1PasswordHasher(PBKDF2SHA1PasswordHasher):
+            iterations = 1
+
+        class LowWorkFactorScryptPasswordHasher(ScryptPasswordHasher):
+            work_factor = 2**4
+
         hasher_classes = [
             MD5PasswordHasher,
-            PBKDF2PasswordHasher,
-            PBKDF2SHA1PasswordHasher,
-            ScryptPasswordHasher,
+            LowIterationPBKDF2PasswordHasher,
+            LowIterationPBKDF2SHA1PasswordHasher,
+            LowWorkFactorScryptPasswordHasher,
         ]
         for hasher_class in hasher_classes:
             hasher = hasher_class()
