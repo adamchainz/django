@@ -733,7 +733,7 @@ class FilterExpression:
         <Variable: 'variable'>
     """
 
-    __slots__ = ("token", "filters", "var", "is_var")
+    __slots__ = ("token", "filters", "_filters_with_flags", "var", "is_var")
 
     def __init__(self, token, parser):
         self.token = token
@@ -780,6 +780,18 @@ class FilterExpression:
         self.filters = filters
         self.var = var_obj
         self.is_var = isinstance(var_obj, Variable)
+        # Pre-resolve the filters' static properties to avoid getattr() calls
+        # for every filter application when resolving.
+        self._filters_with_flags = [
+            (
+                func,
+                args,
+                getattr(func, "expects_localtime", False),
+                getattr(func, "needs_autoescape", False),
+                getattr(func, "is_safe", False),
+            )
+            for func, args in filters
+        ]
 
     def resolve(self, context, ignore_failures=False):
         if self.is_var:
@@ -799,20 +811,27 @@ class FilterExpression:
                         obj = string_if_invalid
         else:
             obj = self.var
-        for func, args in self.filters:
-            arg_vals = []
-            for lookup, arg in args:
-                if not lookup:
-                    arg_vals.append(mark_safe(arg))
-                else:
-                    arg_vals.append(arg.resolve(context))
-            if getattr(func, "expects_localtime", False):
+        for (
+            func,
+            args,
+            expects_localtime,
+            needs_autoescape,
+            is_safe,
+        ) in self._filters_with_flags:
+            if args:
+                arg_vals = [
+                    arg.resolve(context) if lookup else mark_safe(arg)
+                    for lookup, arg in args
+                ]
+            else:
+                arg_vals = ()
+            if expects_localtime:
                 obj = template_localtime(obj, context.use_tz)
-            if getattr(func, "needs_autoescape", False):
+            if needs_autoescape:
                 new_obj = func(obj, autoescape=context.autoescape, *arg_vals)
             else:
                 new_obj = func(obj, *arg_vals)
-            if getattr(func, "is_safe", False) and isinstance(obj, SafeData):
+            if is_safe and isinstance(obj, SafeData):
                 obj = mark_safe(new_obj)
             else:
                 obj = new_obj
