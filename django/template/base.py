@@ -829,6 +829,8 @@ class FilterExpression:
                         obj = string_if_invalid
         else:
             obj = self.var
+        if not self._filters_with_flags:
+            return obj
         for (
             func,
             args,
