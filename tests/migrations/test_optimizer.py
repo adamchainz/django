@@ -1463,7 +1463,10 @@ class OptimizerTests(OptimizerTestBase):
                         ("age", models.IntegerField()),
                     ],
                     options={
-                        "indexes": [models.Index(fields=["age"], name="idx_pony_age")],
+                        "indexes": [
+                            models.Index(fields=["age"], name="idx_pony_age"),
+                            models.Index(fields=["weight"], name="idx_pony_weight"),
+                        ],
                     },
                 ),
                 migrations.RenameIndex(
@@ -1478,11 +1481,11 @@ class OptimizerTests(OptimizerTestBase):
                         ("age", models.IntegerField()),
                     ],
                     options={
-                        "indexes": [models.Index(fields=["age"], name="idx_pony_age")],
+                        "indexes": [
+                            models.Index(fields=["age"], name="idx_pony_age_new"),
+                            models.Index(fields=["weight"], name="idx_pony_weight"),
+                        ],
                     },
-                ),
-                migrations.RenameIndex(
-                    "Pony", new_name="idx_pony_age_new", old_name="idx_pony_age"
                 ),
             ],
         )

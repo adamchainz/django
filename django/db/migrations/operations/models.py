@@ -333,6 +333,22 @@ class CreateModel(ModelOperation):
                         },
                     ),
                 ]
+            elif isinstance(operation, RenameIndex) and operation.old_name:
+                options_indexes = []
+                for index in self.options.get("indexes", []):
+                    if index.name == operation.old_name:
+                        index = copy(index)
+                        index.name = operation.new_name
+                    options_indexes.append(index)
+                return [
+                    replace(
+                        self,
+                        options={
+                            **self.options,
+                            "indexes": options_indexes,
+                        },
+                    ),
+                ]
             elif isinstance(operation, AddConstraint):
                 return [
                     replace(
