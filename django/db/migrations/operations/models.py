@@ -939,9 +939,17 @@ class AddIndex(IndexOperation):
         return "%s_%s" % (self.model_name_lower, self.index.name.lower())
 
     def reduce(self, operation, app_label):
-        if isinstance(operation, RemoveIndex) and self.index.name == operation.name:
+        if (
+            isinstance(operation, RemoveIndex)
+            and self.model_name_lower == operation.model_name_lower
+            and self.index.name == operation.name
+        ):
             return []
-        if isinstance(operation, RenameIndex) and self.index.name == operation.old_name:
+        if (
+            isinstance(operation, RenameIndex)
+            and self.model_name_lower == operation.model_name_lower
+            and self.index.name == operation.old_name
+        ):
             index = copy(self.index)
             index.name = operation.new_name
             return [replace(self, index=index)]

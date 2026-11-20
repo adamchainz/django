@@ -1199,6 +1199,14 @@ class OptimizerTests(OptimizerTestBase):
                         ),
                     ],
                 )
+                self.assertDoesNotOptimize(
+                    [
+                        migrations.AddIndex("Pony", index),
+                        migrations.RenameIndex(
+                            "Horse", new_name="new_name", old_name="mid_name"
+                        ),
+                    ],
+                )
 
     def test_add_remove_index(self):
         self.assertOptimizesTo(
@@ -1212,6 +1220,17 @@ class OptimizerTests(OptimizerTestBase):
                 migrations.RemoveIndex("Pony", "idx_pony_weight_pink"),
             ],
             [],
+        )
+        self.assertDoesNotOptimize(
+            [
+                migrations.AddIndex(
+                    "Pony",
+                    models.Index(
+                        fields=["weight", "pink"], name="idx_pony_weight_pink"
+                    ),
+                ),
+                migrations.RemoveIndex("Horse", "idx_pony_weight_pink"),
+            ],
         )
 
     def test_add_remove_constraint(self):
