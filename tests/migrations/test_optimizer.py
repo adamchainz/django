@@ -1384,6 +1384,34 @@ class OptimizerTests(OptimizerTestBase):
             [migrations.AddConstraint("Pony", constraint_with_error)],
         )
 
+    def test_index_operation_delete_model(self):
+        index = models.Index(fields=["weight"], name="idx_pony_weight")
+        constraint = models.CheckConstraint(
+            condition=models.Q(weight__gt=0), name="pony_weight_gt_0"
+        )
+        tests = [
+            migrations.AddIndex("Pony", index),
+            migrations.RemoveIndex("Pony", "idx_pony_weight"),
+            migrations.RenameIndex(
+                "Pony", new_name="new_name", old_name="idx_pony_weight"
+            ),
+            migrations.RenameIndex(
+                "Pony", new_name="new_name", old_fields=("weight", "pink")
+            ),
+            migrations.AddConstraint("Pony", constraint),
+            migrations.RemoveConstraint("Pony", "pony_weight_gt_0"),
+            migrations.AlterConstraint("Pony", "pony_weight_gt_0", constraint),
+        ]
+        for operation in tests:
+            with self.subTest(operation=operation):
+                self.assertOptimizesTo(
+                    [operation, migrations.DeleteModel("Pony")],
+                    [migrations.DeleteModel("Pony")],
+                )
+                self.assertDoesNotOptimize(
+                    [operation, migrations.DeleteModel("Horse")],
+                )
+
     def test_create_model_add_index(self):
         self.assertOptimizesTo(
             [

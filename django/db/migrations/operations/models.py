@@ -898,6 +898,14 @@ class IndexOperation(Operation):
     def model_name_lower(self):
         return self.model_name.lower()
 
+    def reduce(self, operation, app_label):
+        if (
+            isinstance(operation, DeleteModel)
+            and self.model_name_lower == operation.name_lower
+        ):
+            return [operation]
+        return super().reduce(operation, app_label)
+
 
 class AddIndex(IndexOperation):
     """Add an index on a model."""
