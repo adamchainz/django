@@ -1272,6 +1272,13 @@ class RemoveConstraint(IndexOperation):
             constraint = to_model_state.get_constraint_by_name(self.name)
             schema_editor.add_constraint(model, constraint)
 
+    def references_model(self, name, app_label):
+        # The removed constraint may be a unique constraint that foreign keys
+        # on other models depend on. Operations removing such foreign keys
+        # don't reference this model, e.g. AlterField() to a non-relational
+        # field, so they must not be moved after this operation.
+        return True
+
     def deconstruct(self):
         return (
             self.__class__.__name__,

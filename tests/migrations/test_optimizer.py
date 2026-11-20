@@ -1434,7 +1434,6 @@ class OptimizerTests(OptimizerTestBase):
                 "Horse", new_name="new_name", old_fields=("weight", "pink")
             ),
             migrations.AddConstraint("Horse", constraint),
-            migrations.RemoveConstraint("Horse", "horse_weight_gt_0"),
             migrations.AlterConstraint("Horse", "horse_weight_gt_0", constraint),
         ]
         for operation in tests:
@@ -1489,6 +1488,24 @@ class OptimizerTests(OptimizerTestBase):
                         migrations.RemoveField("Horse", "age"),
                     ],
                 )
+
+    def test_remove_constraint_not_optimized_through(self):
+        """
+        RemoveConstraint may remove a unique constraint that a foreign key on
+        another model depends on, so foreign key removals cannot be moved after
+        it.
+        """
+        self.assertOptimizesTo(
+            [
+                migrations.AlterField("Horse", "pony", models.IntegerField()),
+                migrations.RemoveConstraint("Pony", "pony_code_uniq"),
+                migrations.RemoveField("Horse", "pony"),
+            ],
+            [
+                migrations.RemoveField("Horse", "pony"),
+                migrations.RemoveConstraint("Pony", "pony_code_uniq"),
+            ],
+        )
 
     def test_optimize_index_operations_through(self):
         self.assertOptimizesTo(
