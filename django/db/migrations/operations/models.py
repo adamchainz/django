@@ -1144,6 +1144,8 @@ class RenameIndex(IndexOperation):
             and operation.old_name
             and self.new_name_lower == operation.old_name_lower
         ):
+            if self.old_name == operation.new_name:
+                return []
             return [replace(self, new_name=operation.new_name)]
         if (
             isinstance(operation, RemoveIndex)

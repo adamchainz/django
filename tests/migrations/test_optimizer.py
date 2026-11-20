@@ -1157,6 +1157,17 @@ class OptimizerTests(OptimizerTestBase):
             ],
             [migrations.RenameIndex("Pony", new_name="new_name", old_name="old_name")],
         )
+        self.assertOptimizesTo(
+            [
+                migrations.RenameIndex(
+                    "Pony", new_name="new_name", old_name="old_name"
+                ),
+                migrations.RenameIndex(
+                    "Pony", new_name="old_name", old_name="new_name"
+                ),
+            ],
+            [],
+        )
         self.assertDoesNotOptimize(
             [
                 migrations.RenameIndex(
