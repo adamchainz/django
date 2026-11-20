@@ -83,6 +83,41 @@ class OptimizerTests(OptimizerTestBase):
             ],
         )
 
+    def test_rename_model_undo(self):
+        self.assertOptimizesTo(
+            [
+                migrations.RenameModel("Foo", "Bar"),
+                migrations.RenameModel("Bar", "Foo"),
+            ],
+            [],
+        )
+        self.assertOptimizesTo(
+            [
+                migrations.RenameModel("Foo", "Baa"),
+                migrations.RenameModel("Baa", "Bar"),
+                migrations.RenameModel("Bar", "Foo"),
+            ],
+            [],
+        )
+        # The original name can be reused while the model is renamed.
+        self.assertOptimizesTo(
+            [
+                migrations.RenameModel("Foo", "Bar"),
+                migrations.CreateModel("Foo", fields=[]),
+                migrations.RenameModel("Foo", "Baz"),
+                migrations.RenameModel("Bar", "Foo"),
+            ],
+            [migrations.CreateModel("Baz", fields=[])],
+        )
+        # A change of case renames the model in the state.
+        self.assertOptimizesTo(
+            [
+                migrations.RenameModel("Foo", "Bar"),
+                migrations.RenameModel("Bar", "foo"),
+            ],
+            [migrations.RenameModel("Foo", "foo")],
+        )
+
     def test_create_alter_model_options(self):
         self.assertOptimizesTo(
             [

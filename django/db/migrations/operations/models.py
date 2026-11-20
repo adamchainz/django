@@ -540,6 +540,8 @@ class RenameModel(ModelOperation):
             isinstance(operation, RenameModel)
             and self.new_name_lower == operation.old_name_lower
         ):
+            if self.old_name == operation.new_name:
+                return []
             return [replace(self, new_name=operation.new_name)]
         # Skip `ModelOperation.reduce` as we want to run `references_model`
         # against self.new_name.
