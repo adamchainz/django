@@ -900,13 +900,20 @@ class IndexOperation(Operation):
     def model_name_lower(self):
         return self.model_name.lower()
 
+    def references_model(self, name, app_label):
+        # Indexes and constraints cannot span relations, so they only
+        # reference their own model.
+        return name.lower() == self.model_name_lower
+
     def reduce(self, operation, app_label):
         if (
             isinstance(operation, DeleteModel)
             and self.model_name_lower == operation.name_lower
         ):
             return [operation]
-        return super().reduce(operation, app_label)
+        return super().reduce(operation, app_label) or not operation.references_model(
+            self.model_name, app_label
+        )
 
 
 class AddIndex(IndexOperation):

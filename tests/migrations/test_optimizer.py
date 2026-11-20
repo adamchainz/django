@@ -1419,6 +1419,121 @@ class OptimizerTests(OptimizerTestBase):
             [migrations.AddConstraint("Pony", constraint_with_error)],
         )
 
+    def test_optimize_through_index_operations(self):
+        index = models.Index(fields=["weight"], name="idx_horse_weight")
+        constraint = models.CheckConstraint(
+            condition=models.Q(weight__gt=0), name="horse_weight_gt_0"
+        )
+        tests = [
+            migrations.AddIndex("Horse", index),
+            migrations.RemoveIndex("Horse", "idx_horse_weight"),
+            migrations.RenameIndex(
+                "Horse", new_name="new_name", old_name="idx_horse_weight"
+            ),
+            migrations.RenameIndex(
+                "Horse", new_name="new_name", old_fields=("weight", "pink")
+            ),
+            migrations.AddConstraint("Horse", constraint),
+            migrations.RemoveConstraint("Horse", "horse_weight_gt_0"),
+            migrations.AlterConstraint("Horse", "horse_weight_gt_0", constraint),
+        ]
+        for operation in tests:
+            with self.subTest(operation=operation):
+                # Right reduction.
+                self.assertOptimizesTo(
+                    [
+                        migrations.AddField("Pony", "age", models.IntegerField()),
+                        operation,
+                        migrations.RemoveField("Pony", "age"),
+                    ],
+                    [operation],
+                )
+                self.assertOptimizesTo(
+                    [
+                        migrations.CreateModel("Pony", fields=[]),
+                        operation,
+                        migrations.AddField("Pony", "age", models.IntegerField()),
+                    ],
+                    [
+                        operation,
+                        migrations.CreateModel(
+                            "Pony", fields=[("age", models.IntegerField())]
+                        ),
+                    ],
+                )
+                # Left reduction.
+                self.assertOptimizesTo(
+                    [
+                        migrations.CreateModel("Pony", fields=[]),
+                        migrations.AddField(
+                            "Rider", "pony", models.ForeignKey("Pony", models.CASCADE)
+                        ),
+                        operation,
+                        migrations.AddField("Pony", "age", models.IntegerField()),
+                    ],
+                    [
+                        migrations.CreateModel(
+                            "Pony", fields=[("age", models.IntegerField())]
+                        ),
+                        migrations.AddField(
+                            "Rider", "pony", models.ForeignKey("Pony", models.CASCADE)
+                        ),
+                        operation,
+                    ],
+                )
+                # Operations on the same model are not optimized through.
+                self.assertDoesNotOptimize(
+                    [
+                        migrations.AddField("Horse", "age", models.IntegerField()),
+                        operation,
+                        migrations.RemoveField("Horse", "age"),
+                    ],
+                )
+
+    def test_optimize_index_operations_through(self):
+        self.assertOptimizesTo(
+            [
+                migrations.AddIndex(
+                    "Pony", models.Index(fields=["weight"], name="idx_pony_weight")
+                ),
+                migrations.AddField("Horse", "age", models.IntegerField()),
+                migrations.RemoveIndex("Pony", "idx_pony_weight"),
+            ],
+            [migrations.AddField("Horse", "age", models.IntegerField())],
+        )
+        self.assertOptimizesTo(
+            [
+                migrations.AddConstraint(
+                    "Pony",
+                    models.CheckConstraint(
+                        condition=models.Q(weight__gt=0), name="pony_weight_gt_0"
+                    ),
+                ),
+                migrations.AddField("Horse", "age", models.IntegerField()),
+                migrations.RemoveConstraint("Pony", "pony_weight_gt_0"),
+            ],
+            [migrations.AddField("Horse", "age", models.IntegerField())],
+        )
+        # Operations on the same model are not optimized through.
+        self.assertDoesNotOptimize(
+            [
+                migrations.AddIndex(
+                    "Pony", models.Index(fields=["weight"], name="idx_pony_weight")
+                ),
+                migrations.AddField("Pony", "age", models.IntegerField()),
+                migrations.RemoveIndex("Pony", "idx_pony_weight"),
+            ],
+        )
+        self.assertDoesNotOptimize(
+            [
+                migrations.AddIndex(
+                    "Pony", models.Index(fields=["weight"], name="idx_pony_weight")
+                ),
+                migrations.RenameModel("Pony", "Horse"),
+                migrations.RemoveIndex("Horse", "idx_pony_weight"),
+            ],
+        )
+
     def test_index_operation_delete_model(self):
         index = models.Index(fields=["weight"], name="idx_pony_weight")
         constraint = models.CheckConstraint(
