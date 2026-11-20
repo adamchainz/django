@@ -1168,6 +1168,54 @@ class OptimizerTests(OptimizerTestBase):
             ]
         )
 
+    def test_rename_remove_index(self):
+        self.assertOptimizesTo(
+            [
+                migrations.RenameIndex(
+                    "Pony", new_name="new_name", old_name="old_name"
+                ),
+                migrations.RemoveIndex("Pony", "new_name"),
+            ],
+            [migrations.RemoveIndex("Pony", "old_name")],
+        )
+        self.assertOptimizesTo(
+            [
+                migrations.AddIndex(
+                    "Pony", models.Index(fields=["weight"], name="old_name")
+                ),
+                migrations.RenameIndex(
+                    "Pony", new_name="new_name", old_name="old_name"
+                ),
+                migrations.RemoveIndex("Pony", "new_name"),
+            ],
+            [],
+        )
+        # RemoveIndex requires a name, which unnamed indexes don't have.
+        self.assertDoesNotOptimize(
+            [
+                migrations.RenameIndex(
+                    "Pony", new_name="new_name", old_fields=("weight", "pink")
+                ),
+                migrations.RemoveIndex("Pony", "new_name"),
+            ],
+        )
+        self.assertDoesNotOptimize(
+            [
+                migrations.RenameIndex(
+                    "Pony", new_name="new_name", old_name="old_name"
+                ),
+                migrations.RemoveIndex("Pony", "other_name"),
+            ],
+        )
+        self.assertDoesNotOptimize(
+            [
+                migrations.RenameIndex(
+                    "Pony", new_name="new_name", old_name="old_name"
+                ),
+                migrations.RemoveIndex("Horse", "new_name"),
+            ],
+        )
+
     def test_add_rename_index(self):
         tests = [
             models.Index(fields=["weight", "pink"], name="mid_name"),

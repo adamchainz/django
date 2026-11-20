@@ -1145,6 +1145,13 @@ class RenameIndex(IndexOperation):
             and self.new_name_lower == operation.old_name_lower
         ):
             return [replace(self, new_name=operation.new_name)]
+        if (
+            isinstance(operation, RemoveIndex)
+            and self.model_name_lower == operation.model_name_lower
+            and self.old_name
+            and self.new_name == operation.name
+        ):
+            return [replace(operation, name=self.old_name)]
         return super().reduce(operation, app_label)
 
 
