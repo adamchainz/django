@@ -1,0 +1,65 @@
+From 32938826e963cf2f9f758debcfda2d60da0fe31e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 22 Nov 2026 14:24:51 +0000
+Subject: [PATCH] fixup! Fixed #37151 -- Allowed squashing through AddIndex,
+ AddConstraint, AlterConstraint.
+
+Kept RemoveConstraint referencing all models: it may remove a unique
+constraint that a foreign key on another model depends on, and
+operations that remove such foreign keys, e.g. AlterField() to a
+non-relational field, don't reference the constraint's model.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01V1f9YveKEeBkcDCXhxbyQB
+---
+ django/db/migrations/operations/models.py |  7 +++++++
+ tests/migrations/test_optimizer.py        | 18 ++++++++++++++++++
+ 2 files changed, 25 insertions(+)
+
+diff --git a/django/db/migrations/operations/models.py b/django/db/migrations/operations/models.py
+index 485a145c1..ce093b0e2 100644
+--- a/django/db/migrations/operations/models.py
++++ b/django/db/migrations/operations/models.py
+@@ -1269,6 +1269,13 @@ class RemoveConstraint(IndexOperation):
+             constraint = to_model_state.get_constraint_by_name(self.name)
+             schema_editor.add_constraint(model, constraint)
+ 
++    def references_model(self, name, app_label):
++        # The removed constraint may be a unique constraint that foreign keys
++        # on other models depend on. Operations removing such foreign keys
++        # don't reference this model, e.g. AlterField() to a non-relational
++        # field, so they must not be moved after this operation.
++        return True
++
+     def deconstruct(self):
+         return (
+             self.__class__.__name__,
+diff --git a/tests/migrations/test_optimizer.py b/tests/migrations/test_optimizer.py
+index 4462a807c..34777054c 100644
+--- a/tests/migrations/test_optimizer.py
++++ b/tests/migrations/test_optimizer.py
+@@ -1626,3 +1626,21 @@ class OptimizerTests(OptimizerTestBase):
+                 migrations.RenameField("a", "name", "new_name"),
+             ],
+         )
++
++    def test_optimize_foreign_key_removal_before_remove_constraint(self):
++        """
++        RemoveConstraint may remove a unique constraint that a foreign key on
++        another model depends on, so foreign key removals cannot be moved after
++        it.
++        """
++        self.assertOptimizesTo(
++            [
++                migrations.AlterField("Horse", "pony", models.IntegerField()),
++                migrations.RemoveConstraint("Pony", "pony_code_uniq"),
++                migrations.RemoveField("Horse", "pony"),
++            ],
++            [
++                migrations.RemoveField("Horse", "pony"),
++                migrations.RemoveConstraint("Pony", "pony_code_uniq"),
++            ],
++        )
+-- 
+2.43.0
+

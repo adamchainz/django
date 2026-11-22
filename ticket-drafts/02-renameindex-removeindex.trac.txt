@@ -1,0 +1,34 @@
+Summary: Reduce RenameIndex/RemoveIndex operations when optimizing migrations
+Type: Cleanup/optimization
+Component: Migrations
+Version: dev
+Severity: Normal
+Keywords: optimizer squashmigrations
+Has patch: yes
+
+--- Description ---
+
+Follow up to #34534, which asked for new tickets for further reductions.
+
+A `RenameIndex` followed by a `RemoveIndex` of the renamed index is not reduced:
+
+{{{#!python
+[
+    migrations.RenameIndex("Pony", new_name="new_name", old_name="old_name"),
+    migrations.RemoveIndex("Pony", "new_name"),
+]
+}}}
+
+It can be reduced to:
+
+{{{#!python
+[
+    migrations.RemoveIndex("Pony", "old_name"),
+]
+}}}
+
+This also lets `AddIndex` + `RenameIndex` + `RemoveIndex` of the same index reduce to nothing.
+
+`RenameIndex` operations using `old_fields` (unnamed indexes from `Meta.index_together`) cannot be reduced this way, as `RemoveIndex` requires an index name.
+
+Patch: https://github.com/adamchainz/django/commit/308d91cca2c24ecec6d29eee62560940850c1e9a

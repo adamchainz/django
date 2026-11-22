@@ -1,0 +1,32 @@
+I worked on the same model-level change independently and found a case where it reorders operations unsafely.
+
+A foreign key with `to_field` can depend on a `UniqueConstraint` on the target model. Operations that remove such a foreign key, such as `AlterField()` to a non-relational field, don't reference the target model, because operations only describe a field's new state. So with the PR, these operations:
+
+{{{#!python
+[
+    migrations.AlterField("Horse", "pony", models.IntegerField()),
+    migrations.RemoveConstraint("Pony", "pony_code_uniq"),
+    migrations.RemoveField("Horse", "pony"),
+]
+}}}
+
+are optimized to:
+
+{{{#!python
+[
+    migrations.RemoveConstraint("Pony", "pony_code_uniq"),
+    migrations.RemoveField("Horse", "pony"),
+]
+}}}
+
+where `Pony.pony_code_uniq` is `UniqueConstraint(fields=["code"])` and `Horse.pony` was `ForeignKey(Pony, models.CASCADE, to_field="code")`. On PostgreSQL this fails:
+
+{{{
+django.db.utils.InternalError: cannot drop constraint pony_code_uniq on table app_pony because other objects depend on it
+}}}
+
+`RemoveConstraint` only holds a name, so it cannot tell whether the constraint is unique, and needs to keep referencing all models. The other operations are safe: `AddConstraint` and `AlterConstraint` cannot break foreign keys on other models, and a plain `Index` cannot back a `to_field`.
+
+With `RemoveConstraint` kept conservative, the example above is optimized safely to `RemoveField` then `RemoveConstraint`. I left a patch for this on the PR.
+
+The same reordering already happens with `unique=True` on the field instead of a constraint, without this ticket's changes. I opened #NNNNN for that.

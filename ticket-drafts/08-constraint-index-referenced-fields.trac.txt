@@ -1,0 +1,30 @@
+Summary: Add a method to report the fields referenced by constraints and indexes
+Type: New feature
+Component: Database layer (models, ORM)
+Version: dev
+Severity: Normal
+Keywords: migrations optimizer constraints indexes
+Has patch: no
+
+--- Description ---
+
+Constraints and indexes have no public way to report which fields they reference. This would help in two places:
+
+ 1. The migration optimizer. #37151 lets operations be optimized through index and constraint operations on other models. Optimizing through them on the same model requires `references_field()`, which in turn needs the referenced fields. In comment:4 there, Simon noted that this needs to cater for all potential field references: `fields` (including `-field` ordering), `expressions`, `include`, and `condition`. The migration code cannot do this for constraints it doesn't know, such as `django.contrib.postgres`'s `ExclusionConstraint` or third-party `BaseConstraint` subclasses.
+
+ 2. System checks. `Index.check()`, `CheckConstraint.check()`, `UniqueConstraint.check()`, and `ExclusionConstraint.check()` each gather references with `Model._get_expr_references()` in their own way. `ExclusionConstraint.check()` only looks at `expressions`, so it appears to miss references in `condition` and `include`. This needs confirming.
+
+Proposal: add a method on `BaseConstraint` and `Index`, for example `get_referenced_fields()`, returning the referenced field lookup paths as tuples, as `Model._get_expr_references()` does: `{("weight",), ("pink",)}`.
+
+ * `BaseConstraint` returns `None`, meaning unknown. Callers then assume the constraint may reference every field of the model. This keeps third-party constraints that don't implement the method correct.
+ * `CheckConstraint`, `UniqueConstraint`, `ExclusionConstraint`, and `Index` implement it. The PostgreSQL index subclasses inherit `Index`'s implementation.
+ * The method must not need a model class, since the migration optimizer only has operations. `Model._get_expr_references()` doesn't use its class, so it can become a function shared by both.
+ * Returning full lookup paths lets the system checks keep detecting joins (`models.E041`). The optimizer only needs the first part of each path.
+
+Callers need to account for:
+
+ * `pk`, which can refer to any field when the primary key isn't known.
+ * Foreign key attribute names: `author_id` references the field `author`.
+ * Generated fields, which reference other fields through their expression.
+
+For the optimizer, only `AddIndex`, `AddConstraint`, `AlterConstraint`, and `RenameIndex` with `old_fields` would gain. `RemoveIndex`, `RemoveConstraint`, and `RenameIndex` with `old_name` only hold a name, so they must stay conservative.

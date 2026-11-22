@@ -1,0 +1,36 @@
+Summary: Reduce index and constraint operations with DeleteModel when optimizing migrations
+Type: Cleanup/optimization
+Component: Migrations
+Version: dev
+Severity: Normal
+Keywords: optimizer squashmigrations
+Has patch: yes
+
+--- Description ---
+
+Follow up to #35962, where Simon wrote in comment:1:
+
+> we should also add a reduce for `RemoveIndex` and `RemoveConstraint` against `DeleteModel` in a possible follow up ticket.
+
+Index and constraint operations followed by a `DeleteModel` of the same model are not reduced:
+
+{{{#!python
+[
+    migrations.RemoveIndex("Pony", "idx_pony_weight"),
+    migrations.DeleteModel("Pony"),
+]
+}}}
+
+It can be reduced to:
+
+{{{#!python
+[
+    migrations.DeleteModel("Pony"),
+]
+}}}
+
+Dropping the table drops its indexes and constraints. In reverse, `DeleteModel` recreates the table from the state before it, which then contains the right indexes and constraints.
+
+This is the same reduction `ModelOptionOperation.reduce()` already makes for `AlterModelOptions`, `AlterModelTable`, etc. It applies to all of `AddIndex`, `RemoveIndex`, `RenameIndex`, `AddConstraint`, `RemoveConstraint`, and `AlterConstraint`, implemented once in `IndexOperation.reduce()`.
+
+Patch: https://github.com/adamchainz/django/commit/b79fab8a2cb4c7c27c5d2bb256de62bc0491051a

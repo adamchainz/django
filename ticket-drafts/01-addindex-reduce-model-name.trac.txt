@@ -1,0 +1,37 @@
+Summary: AddIndex.reduce() ignores model names when reducing with RemoveIndex/RenameIndex
+Type: Bug
+Component: Migrations
+Version: dev
+Severity: Normal
+Keywords: optimizer squashmigrations
+Has patch: yes
+
+--- Description ---
+
+`AddIndex.reduce()` only compares index names, not model names, when reducing with `RemoveIndex` and `RenameIndex`. Every other index and constraint reduction, such as `AddConstraint.reduce()` and `RenameIndex.reduce()`, also checks `model_name_lower`.
+
+As a result, operations on an index with the same name on a different model are reduced:
+
+{{{#!python
+from django.db import migrations, models
+from django.db.migrations.optimizer import MigrationOptimizer
+
+MigrationOptimizer().optimize(
+    [
+        migrations.AddIndex(
+            "Pony", models.Index(fields=["weight"], name="weight_idx")
+        ),
+        migrations.RemoveIndex("Horse", "weight_idx"),
+    ],
+    "app",
+)
+# []
+}}}
+
+Both operations are dropped, leaving the index on `Horse` and never creating the one on `Pony`.
+
+The `models.E030` check prevents duplicate index names among current models, but an index name can move between models over a project's history. On MySQL, where index names only need to be unique per table, the operations above are valid in sequence, for example when squashing migrations that moved an index from one model to another.
+
+`RenameIndex` is affected in the same way: `AddIndex("Pony", ...)` followed by `RenameIndex("Horse", new_name=..., old_name=<same name>)` renames the index added to `Pony`.
+
+Patch: https://github.com/adamchainz/django/commit/ad36c0f2cfc6e2270f2e8337a25b1691f3eb7fbb

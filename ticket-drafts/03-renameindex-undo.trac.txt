@@ -1,0 +1,34 @@
+Summary: Reduce RenameIndex operations that undo each other when optimizing migrations
+Type: Cleanup/optimization
+Component: Migrations
+Version: dev
+Severity: Normal
+Keywords: optimizer squashmigrations
+Has patch: yes
+
+--- Description ---
+
+Follow up to #34534, which asked for new tickets for further reductions.
+
+Renaming an index and then renaming it back:
+
+{{{#!python
+[
+    migrations.RenameIndex("Pony", new_name="new_name", old_name="old_name"),
+    migrations.RenameIndex("Pony", new_name="old_name", old_name="new_name"),
+]
+}}}
+
+is currently reduced to a rename of the index to its own name:
+
+{{{#!python
+[
+    migrations.RenameIndex("Pony", new_name="old_name", old_name="old_name"),
+]
+}}}
+
+That operation is a no-op since #33710, so the pair can be reduced to nothing.
+
+This only applies when the first `RenameIndex` uses `old_name`. With `old_fields`, the operation also changes the state of `Meta.index_together`, so it must be kept.
+
+Patch: https://github.com/adamchainz/django/commit/d336c8232272fdca68d0ed1e2352420db4db4d01

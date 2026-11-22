@@ -1,0 +1,44 @@
+Summary: Reduce CreateModel/RenameIndex operations when optimizing migrations
+Type: Cleanup/optimization
+Component: Migrations
+Version: dev
+Severity: Normal
+Keywords: optimizer squashmigrations
+Has patch: yes
+
+--- Description ---
+
+Follow up to #34534, which asked for new tickets for further reductions.
+
+`CreateModel` absorbs `AddIndex` and `RemoveIndex` operations into `Meta.indexes`, but not `RenameIndex`:
+
+{{{#!python
+[
+    migrations.CreateModel(
+        "Pony",
+        fields=[("age", models.IntegerField())],
+        options={"indexes": [models.Index(fields=["age"], name="idx_pony_age")]},
+    ),
+    migrations.RenameIndex(
+        "Pony", new_name="idx_pony_age_new", old_name="idx_pony_age"
+    ),
+]
+}}}
+
+It can be reduced to:
+
+{{{#!python
+[
+    migrations.CreateModel(
+        "Pony",
+        fields=[("age", models.IntegerField())],
+        options={
+            "indexes": [models.Index(fields=["age"], name="idx_pony_age_new")]
+        },
+    ),
+]
+}}}
+
+`test_create_model_rename_index_no_old_fields` currently asserts that this is not optimized. It was added in 8e2460d599aec95f8cfe514d3cc8acdd4ca4b1fb alongside the `old_fields` reduction, which was later removed with `index_together`, and seems to document the existing behavior rather than a reason not to reduce.
+
+Patch: https://github.com/adamchainz/django/commit/8489cef013017cf7e0f2991f2ca04607c0f8c771

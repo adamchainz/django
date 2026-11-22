@@ -1,0 +1,55 @@
+Summary: Migration optimizer moves removal of a unique constraint before removal of a foreign key that depends on it
+Type: Bug
+Component: Migrations
+Version: dev
+Severity: Normal
+Keywords: optimizer squashmigrations
+Has patch: no
+
+--- Description ---
+
+Take these models, where `Horse.pony` is a foreign key to the unique field `Pony.code`:
+
+{{{#!python
+class Pony(models.Model):
+    code = models.IntegerField(unique=True)
+
+
+class Horse(models.Model):
+    pony = models.ForeignKey(Pony, models.CASCADE, to_field="code")
+}}}
+
+Then `Horse.pony` is changed to a plain integer, `Pony.code` loses `unique=True`, and finally `Horse.pony` is removed. These operations run fine:
+
+{{{#!python
+[
+    migrations.AlterField("Horse", "pony", models.IntegerField()),
+    migrations.AlterField("Pony", "code", models.IntegerField()),
+    migrations.RemoveField("Horse", "pony"),
+]
+}}}
+
+But the optimizer, for example in `squashmigrations`, reduces the first and last operations and moves the result after the `AlterField` on `Pony`:
+
+{{{#!python
+[
+    migrations.AlterField("Pony", "code", models.IntegerField()),
+    migrations.RemoveField("Horse", "pony"),
+]
+}}}
+
+This removes the unique constraint while the foreign key still depends on it, which fails on PostgreSQL:
+
+{{{
+django.db.utils.InternalError: cannot drop constraint app_pony_code_key on table app_pony because other objects depend on it
+}}}
+
+The `AlterField` on `Horse` can be optimized through the `AlterField` on `Pony` because `FieldOperation.reduce()` only checks whether `Pony.code`'s new field references `Horse.pony`. Operations only describe the new state of a field, so nothing shows that `AlterField("Horse", "pony", IntegerField())` removes a foreign key to `Pony`.
+
+The same happens with a `UniqueConstraint` in `Meta.constraints` and `RemoveConstraint`, if index and constraint operations are allowed to be optimized through (#37151).
+
+Possible fixes:
+
+ * Make field operations that may remove a relation conservative, but they cannot tell whether the previous field was relational.
+ * Make operations that may remove uniqueness conservative: `AlterField` can't tell whether the previous field was unique either, though `RemoveConstraint` can always be treated as such.
+ * Give `reduce()` access to the project state, which is a larger change.
